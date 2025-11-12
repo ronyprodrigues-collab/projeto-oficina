@@ -1,0 +1,89 @@
+@model IEnumerable<Models.OrdemServico>
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table table-striped table-hover datatable">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Descricao)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.DataAbertura)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.DataPrevista)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.DataConclusao)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Status)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.AprovadaCliente)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Observacoes)
+            </th>
+            <th class="dt-filter">
+                @Html.DisplayNameFor(model => model.Cliente)
+            </th>
+            <th class="dt-filter">
+                @Html.DisplayNameFor(model => model.Veiculo)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Mecanico)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Descricao)
+            </td>
+            <td>
+                @item.DataAbertura.ToString("dd/MM/yyyy")
+            </td>
+            <td>
+                @(item.DataPrevista.HasValue ? item.DataPrevista.Value.ToString("dd/MM/yyyy") : "-")
+            </td>
+            <td>
+                @(item.DataConclusao.HasValue ? item.DataConclusao.Value.ToString("dd/MM/yyyy") : "-")
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.AprovadaCliente)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Observacoes)
+            </td>
+            <td>
+                @(item.Cliente != null ? item.Cliente.Nome : "-")
+            </td>
+            <td>
+                @(item.Veiculo != null ? ($"{item.Veiculo.Marca} {item.Veiculo.Modelo} - {item.Veiculo.Placa}") : "-")
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Mecanico.Id)
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

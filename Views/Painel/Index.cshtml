@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Painel";
+    var labelsJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.ChartLabels ?? Array.Empty<string>());
+    var valuesJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.ChartValues ?? Array.Empty<decimal>());
+}
+
+<h1 class="mb-4">Painel</h1>
+
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="card border-0" style="background: rgba(13,110,253,.1);">
+            <div class="card-body">
+                <div class="text-muted small">OS em execução</div>
+                <div class="display-6">@ViewData["EmExecucao"]</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0" style="background: rgba(25,135,84,.1);">
+            <div class="card-body">
+                <div class="text-muted small">OS concluídas</div>
+                <div class="display-6">@ViewData["Concluidas"]</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0" style="background: rgba(255,193,7,.15);">
+            <div class="card-body">
+                <div class="text-muted small">Pendentes de aprovação</div>
+                <div class="display-6">@ViewData["PendentesAprovacao"]</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0" style="background: rgba(108,117,125,.15);">
+            <div class="card-body">
+                <div class="text-muted small">Faturamento do mês</div>
+                <div class="display-6">@String.Format(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), "{0:C}", ViewData["FaturamentoMes"])</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h5 class="card-title">Faturamento (últimos meses)</h5>
+        <canvas id="chartFat" height="100"></canvas>
+    </div>
+    </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        const labels = @Html.Raw(labelsJson);
+        const dataVals = @Html.Raw(valuesJson);
+        const ctx = document.getElementById('chartFat');
+        if (ctx && labels.length) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Faturamento',
+                        data: dataVals,
+                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--ofc-primary') || '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,.15)',
+                        fill: true,
+                        tension: .25,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { callback: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) } }
+                    }
+                }
+            });
+        }
+    </script>
+}

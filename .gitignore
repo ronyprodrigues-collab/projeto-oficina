@@ -1,0 +1,22 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+*.pidb
+*.log
+*.tlog
+*.cache
+*.pdb
+*.opendb
+*.vshost.*
+*.nupkg
+.nuget/
+# OS
+Thumbs.db
+.DS_Store
+

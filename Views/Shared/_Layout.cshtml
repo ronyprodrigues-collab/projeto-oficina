@@ -1,0 +1,319 @@
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<Models.ApplicationUser> UserManager
+@inject SignInManager<Models.ApplicationUser> SignInManager
+@inject Services.IConfiguracoesService ConfigService
+
+@{
+    var appName = "Oficina";
+    var currentUser = SignInManager.IsSignedIn(User) ? await UserManager.GetUserAsync(User) : null;
+    var displayName = currentUser?.NomeCompleto ?? User?.Identity?.Name ?? "Convidado";
+    bool isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor");
+    bool isMecanico = User.IsInRole("Mecanico");
+    bool isSuporte = User.IsInRole("SuporteTecnico");
+
+    var cfg = await ConfigService.GetAsync();
+    if (!string.IsNullOrWhiteSpace(cfg?.NomeOficina)) { appName = cfg.NomeOficina; }
+}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - @appName</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <style>
+        :root {
+            --ofc-primary: #0d6efd;
+            --ofc-secondary: #6c757d;
+            --ofc-accent: #198754;
+            --ofc-navbar-bg: #1f2937;
+            --ofc-sidebar-bg: #111827;
+            --ofc-bg: #0b1220;
+            --ofc-surface: #0f172a;
+            --ofc-text: #f8fafc;
+            --ofc-text-muted: #cbd5e1;
+            --ofc-border: #233047;
+        }
+        [data-theme="light"] {
+            --ofc-navbar-bg: #0d6efd;
+            --ofc-sidebar-bg: #f8f9fa;
+            --ofc-bg: #ffffff;
+            --ofc-surface: #ffffff;
+            --ofc-text: #1f2937;
+            --ofc-text-muted: #475569;
+            --ofc-border: #e5e7eb;
+        }
+        body { background-color: var(--ofc-bg); color: var(--ofc-text); }
+        .navbar { background-color: var(--ofc-navbar-bg) !important; }
+        .navbar .navbar-brand, .navbar .nav-link, .navbar .navbar-text { color: #fff; }
+        .layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar {
+            width: 260px;
+            background-color: var(--ofc-sidebar-bg);
+            border-right: 1px solid var(--ofc-border);
+            transition: margin-left .2s ease-in-out;
+        }
+        .sidebar.collapsed { margin-left: -260px; }
+        .sidebar .nav-link { color: var(--ofc-text-muted); }
+        .sidebar .nav-link.active, .sidebar .nav-link:hover { background: rgba(13,110,253,.1); color: var(--ofc-primary); }
+        .content { flex: 1; background-color: var(--ofc-surface); }
+        .content .container-fluid { padding: 1rem; }
+        .brand-logo { width: 28px; height: 28px; object-fit: contain; }
+
+        /* Bootstrap variable overrides for dark theme to ensure contrast */
+        [data-theme="dark"] {
+            --bs-body-bg: var(--ofc-bg);
+            --bs-body-color: var(--ofc-text);
+            --bs-border-color: var(--ofc-border);
+            --bs-card-bg: var(--ofc-surface);
+            --bs-card-color: var(--ofc-text);
+            --bs-link-color: var(--ofc-primary);
+            --bs-link-hover-color: var(--ofc-primary);
+            --bs-table-color: var(--ofc-text);
+            --bs-table-bg: transparent;
+            --bs-secondary-color: var(--ofc-text-muted);
+            --bs-primary: var(--ofc-primary);
+            --bs-secondary: var(--ofc-secondary);
+        }
+
+        /* Components contrast */
+        [data-theme="dark"] .card, [data-theme="dark"] .modal-content { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
+        [data-theme="dark"] .table { color: var(--ofc-text); }
+        [data-theme="dark"] .table th, [data-theme="dark"] .table td { border-color: var(--ofc-border); }
+        /* Enforce table text contrast */
+        [data-theme="dark"] .table, 
+        [data-theme="dark"] .table td,
+        [data-theme="dark"] .table th,
+        [data-theme="dark"] table.dataTable tbody tr,
+        [data-theme="dark"] table.dataTable tbody td,
+        [data-theme="dark"] table.dataTable thead th {
+            color: var(--ofc-text) !important;
+        }
+        /* Bootstrap table vars for dark theme */
+        [data-theme="dark"] {
+            --bs-table-color: var(--ofc-text);
+            --bs-table-bg: transparent;
+            --bs-table-border-color: var(--ofc-border);
+            --bs-table-striped-bg: rgba(255,255,255,.05);
+            --bs-table-striped-color: var(--ofc-text);
+            --bs-table-hover-bg: rgba(255,255,255,.08);
+            --bs-table-hover-color: var(--ofc-text);
+            --bs-table-active-bg: rgba(255,255,255,.10);
+            --bs-table-active-color: var(--ofc-text);
+        }
+        [data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(255,255,255,.03); }
+        [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,.06); }
+        [data-theme="dark"] .form-label, [data-theme="dark"] label { color: var(--ofc-text); }
+        [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus {
+            background-color: var(--ofc-surface);
+            color: var(--ofc-text);
+            border-color: var(--ofc-border);
+        }
+        [data-theme="dark"] .form-control::placeholder { color: var(--ofc-text-muted); }
+        [data-theme="dark"] .input-group-text { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
+        [data-theme="dark"] .btn-primary { background-color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        [data-theme="dark"] .btn-outline-primary { color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        [data-theme="dark"] .btn-outline-primary:hover { background-color: var(--ofc-primary); color: #fff; }
+        [data-theme="dark"] .btn-secondary { background-color: var(--ofc-secondary); border-color: var(--ofc-secondary); }
+        [data-theme="dark"] .page-link { background-color: var(--ofc-surface); color: var(--bs-link-color); border-color: var(--ofc-border); }
+        [data-theme="dark"] .page-link:hover { background-color: rgba(255,255,255,.06); }
+        /* DataTables dark theme tweaks */
+        [data-theme="dark"] .dt-container .dt-input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
+        [data-theme="dark"] .dt-container .dt-length label, [data-theme="dark"] .dt-container .dt-search label { color: var(--ofc-text); }
+        [data-theme="dark"] .dt-container .dt-paging .dt-paging-button { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
+        [data-theme="dark"] .dt-container .dt-paging .dt-paging-button.current { background-color: var(--ofc-primary); color: #fff; border-color: var(--ofc-primary); }
+        [data-theme="dark"] table.dataTable>thead>tr>th { color: var(--ofc-text) !important; border-color: var(--ofc-border) !important; background-color: #152238 !important; }
+        [data-theme="dark"] thead .dt-filters th { background-color: #12213a !important; }
+        [data-theme="dark"] thead .dt-filters input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
+        [data-theme="dark"] thead .dt-filters select { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
+        [data-theme="dark"] table.dataTable tbody tr { background-color: transparent !important; }
+        [data-theme="dark"] table.dataTable tbody tr:hover { background-color: rgba(255,255,255,.06) !important; }
+        [data-theme="dark"] .dt-container .dt-search input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
+        /* DataTables 1.x wrappers */
+        [data-theme="dark"] .dataTables_length select,
+        [data-theme="dark"] .dataTables_filter input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
+        [data-theme="dark"] .dt-buttons .btn { background-color: var(--ofc-primary); border-color: var(--ofc-primary); color: #fff; }
+        [data-theme="dark"] .dt-buttons .btn:hover { filter: brightness(1.1); }
+    </style>
+    @* Override com cores do banco *@
+    <style>
+        :root {
+            --ofc-primary: @(string.IsNullOrWhiteSpace(cfg?.CorPrimaria) ? "#0d6efd" : cfg.CorPrimaria);
+            --ofc-secondary: @(string.IsNullOrWhiteSpace(cfg?.CorSecundaria) ? "#6c757d" : cfg.CorSecundaria);
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <nav class="navbar navbar-expand navbar-dark">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <button id="sidebarToggle" class="btn btn-outline-light btn-sm me-2" type="button" title="Alternar menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <a class="navbar-brand d-flex align-items-center" asp-controller="Painel" asp-action="Index">
+                    <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
+                    <span>@appName</span>
+                </a>
+            </div>
+            <div class="d-flex align-items-center">
+                <button id="themeToggle" class="btn btn-outline-light btn-sm me-3" type="button">Tema</button>
+                <span class="navbar-text me-2">@displayName</span>
+                @if (SignInManager.IsSignedIn(User))
+                {
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline ms-2">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-light btn-sm">Sair</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="btn btn-outline-light btn-sm me-2" asp-controller="Account" asp-action="Login">Entrar</a>
+                    <a class="btn btn-light btn-sm" asp-controller="Account" asp-action="Register">Registrar</a>
+                }
+            </div>
+        </div>
+    </nav>
+
+    <div class="layout">
+        <aside id="sidebar" class="sidebar">
+            <nav class="nav flex-column p-2">
+                @if (isAdminOrSupervisor)
+                {
+                    <a class="nav-link" asp-controller="Painel" asp-action="Index">Painel</a>
+                    <a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a>
+                    <a class="nav-link" asp-controller="Veiculos" asp-action="Index">Veículos</a>
+                    <a class="nav-link" asp-controller="OrdensServico" asp-action="Index">Ordens de Serviço</a>
+                    <a class="nav-link" asp-controller="Suporte" asp-action="Index">Suporte</a>
+                }
+                else if (isMecanico)
+                {
+                    <a class="nav-link" asp-controller="OrdensServico" asp-action="Minhas">Minhas OS</a>
+                }
+                else if (isSuporte)
+                {
+                    <a class="nav-link" asp-controller="Suporte" asp-action="Index">Configurações do Ambiente</a>
+                }
+                else
+                {
+                    <a class="nav-link" asp-controller="Painel" asp-action="Index">Painel</a>
+                }
+            </nav>
+        </aside>
+        <main class="content">
+            <div class="container-fluid">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/fixedheader/3.4.0/css/fixedHeader.bootstrap5.min.css" />
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/dataTables.fixedHeader.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedheader/3.4.0/js/fixedHeader.bootstrap5.min.js"></script>
+    <script>
+        (() => {
+            const host = document.body;
+            const themeKey = 'ofc-theme';
+            const stored = localStorage.getItem(themeKey) || host.getAttribute('data-theme') || 'light';
+            host.setAttribute('data-theme', stored);
+            document.getElementById('themeToggle')?.addEventListener('click', () => {
+                const current = host.getAttribute('data-theme') || 'light';
+                const next = current === 'light' ? 'dark' : 'light';
+                host.setAttribute('data-theme', next);
+                localStorage.setItem(themeKey, next);
+            });
+
+            document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+                document.getElementById('sidebar')?.classList.toggle('collapsed');
+            });
+
+            // Initialize DataTables for tables with .datatable
+            const initDT = () => {
+                $('table.datatable').each(function () {
+                    const $table = $(this);
+                    if ($table.data('dt-initialized')) return;
+
+                    const $thead = $table.find('thead');
+                    const $headerRow = $thead.find('tr').first();
+                    const $filterRow = $('<tr class="dt-filters"/>').insertAfter($headerRow);
+                    const thCount = $headerRow.find('th').length;
+                    $headerRow.find('th').each(function (idx) {
+                        const $th = $('<th/>').appendTo($filterRow);
+                        if ($(this).hasClass('dt-filter') && idx < thCount - 1) {
+                            $th.append('<select class="form-select form-select-sm"><option value="">Todos</option></select>');
+                        }
+                    });
+
+                    const dt = $table.DataTable({
+                        pageLength: 10,
+                        lengthChange: true,
+                        paging: true,
+                        responsive: true,
+                        fixedHeader: true,
+                        orderCellsTop: true,
+                        order: [],
+                        dom: 'Bfrtip',
+                        buttons: [
+                            { extend: 'pageLength', className: 'btn btn-sm btn-primary' },
+                            { extend: 'copy', className: 'btn btn-sm btn-primary' },
+                            { extend: 'csv', className: 'btn btn-sm btn-primary' },
+                            { extend: 'excel', className: 'btn btn-sm btn-primary' },
+                            { extend: 'pdf', className: 'btn btn-sm btn-primary' },
+                            { extend: 'print', className: 'btn btn-sm btn-primary' },
+                            { extend: 'colvis', className: 'btn btn-sm btn-primary' }
+                        ],
+                        stateSave: true,
+                        autoWidth: false,
+                        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Todos']],
+                        language: {
+                            url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json'
+                        }
+                    });
+
+                    // Preencher selects com valores únicos e aplicar filtros
+                    dt.columns().every(function (idx) {
+                        const column = this;
+                        const $cell = $filterRow.find('th').eq(idx);
+                        const $select = $cell.find('select');
+                        if ($select.length === 0) return;
+                        column.data().unique().sort().each(function (d) {
+                            const text = $('<div>').html(d).text().trim();
+                            if (text && $select.find('option').filter(function(){return $(this).text() === text;}).length === 0) {
+                                $select.append($('<option>', { value: text, text: text }));
+                            }
+                        });
+                        $select.on('change', function () {
+                            const val = $.fn.dataTable.util.escapeRegex($(this).val());
+                            column.search(val ? '^' + val + '$' : '', true, false).draw();
+                        });
+                    });
+
+                    $table.attr('data-dt-initialized', '1');
+                });
+            };
+            // Run after DOM ready
+            $(initDT);
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+
+

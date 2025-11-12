@@ -1,0 +1,45 @@
+@model IEnumerable<Models.OrdemServico>
+@{
+    ViewData["Title"] = "Minhas OS";
+}
+
+<h1 class="mb-3">Minhas Ordens de Serviço</h1>
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Veículo</th>
+            <th>Serviço</th>
+            <th>Data prevista</th>
+            <th>Status</th>
+            <th class="text-end">Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        var veic = item.Veiculo != null ? $"{item.Veiculo.Marca} {item.Veiculo.Modelo} - {item.Veiculo.Placa}" : "-";
+        var serv = string.IsNullOrWhiteSpace(item.Descricao) ? (item.Servicos?.FirstOrDefault()?.Descricao ?? "-") : item.Descricao;
+        <tr>
+            <td>@veic</td>
+            <td>@serv</td>
+            <td>@(item.DataPrevista?.ToString("dd/MM/yyyy") ?? "-")</td>
+            <td>@(string.IsNullOrWhiteSpace(item.Status) ? (item.DataConclusao == null ? "Em execução" : "Concluída") : item.Status)</td>
+            <td class="text-end">
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalhes</a>
+                @if (item.DataConclusao == null)
+                {
+                    <form asp-action="Concluir" asp-route-id="@item.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-primary">Concluir Serviço</button>
+                    </form>
+                }
+                else
+                {
+                    <span class="badge bg-success">Concluída</span>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+ </table>
+

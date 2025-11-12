@@ -1,0 +1,30 @@
+@model Models.OrdemServico
+
+@{
+    ViewData["Title"] = "Atribuir Mecânico";
+}
+
+<h1>Atribuir Mecânico</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="AssignMechanic" method="post">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <div class="mb-3">
+                <label class="form-label" for="mecanicoId">Mecânico</label>
+                <select class="form-select" id="mecanicoId" name="mecanicoId" asp-items="ViewBag.MecanicoId"></select>
+            </div>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">OS #@Model.Id</h5>
+                <p class="card-text">@Model.Descricao</p>
+            </div>
+        </div>
+    </div>
+</div>
+
