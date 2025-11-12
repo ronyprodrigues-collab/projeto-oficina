@@ -254,12 +254,17 @@
                     const $headerRow = $thead.find('tr').first();
                     const $filterRow = $('<tr class="dt-filters"/>').insertAfter($headerRow);
                     const thCount = $headerRow.find('th').length;
-                    $headerRow.find('th').each(function (idx) {
-                        const $th = $('<th/>').appendTo($filterRow);
-                        if ($(this).hasClass('dt-filter') && idx < thCount - 1) {
-                            $th.append('<select class="form-select form-select-sm"><option value="">Todos</option></select>');
-                        }
-                    });
+                    $headerRow$headerRow.find('th').each(function (idx) {
+    const $th = $('<th/>').appendTo($filterRow);
+    const $cell = $(this);
+    if (idx < thCount - 1) {
+        if ($cell.hasClass('dt-filter-select') || $cell.hasClass('dt-filter')) {
+            $th.append('<select class="form-select form-select-sm"><option value="">Todos</option></select>');
+        } else if ($cell.hasClass('dt-filter-text')) {
+            $th.append('<input type="text" class="form-control form-control-sm" placeholder="Filtrar" />');
+        }
+    }
+});
 
                     const dt = $table.DataTable({
                         pageLength: 10,
@@ -315,5 +320,6 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
 
 

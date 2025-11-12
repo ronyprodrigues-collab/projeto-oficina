@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ using Models;
 
 namespace projetos.Controllers
 {
+    [Authorize(Roles = "SuporteTecnico,Admin,Supervisor")]
     public class SuporteController : Controller
     {
         private readonly OficinaDbContext _context;

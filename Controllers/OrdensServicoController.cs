@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Data;
 using Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Models.ViewModels;
 using DinkToPdf;
 using DinkToPdf.Contracts;
@@ -15,6 +16,7 @@ using System.Security.Claims;
 
 namespace projetos.Controllers
 {
+    [Authorize]
     public class OrdensServicoController : Controller
     {
         private readonly OficinaDbContext _context;
@@ -79,6 +81,7 @@ namespace projetos.Controllers
         }
 
         // GET: OrdensServico/Create
+        [Authorize(Roles = "Admin,Supervisor")]
         public IActionResult Create()
         {
             ViewData["ClienteId"] = new SelectList(_context.Clientes, "Id", "Id");
@@ -92,6 +95,7 @@ namespace projetos.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Create([Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataAbertura,DataPrevista,DataConclusao,Status,AprovadaCliente,Observacoes")] OrdemServico ordemServico, List<ServicoItemInput>? servicos, List<PecaItemInput>? pecas)
         {
             if (ModelState.IsValid)
@@ -126,6 +130,7 @@ namespace projetos.Controllers
         }
 
         // GET: OrdensServico/Edit/5
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -149,6 +154,7 @@ namespace projetos.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Edit(int id, [Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataAbertura,DataPrevista,DataConclusao,Status,AprovadaCliente,Observacoes")] OrdemServico ordemServico)
         {
             if (id != ordemServico.Id)
@@ -236,6 +242,7 @@ namespace projetos.Controllers
         }
 
         // GET: OrdensServico/Delete/5
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -259,6 +266,7 @@ namespace projetos.Controllers
         // POST: OrdensServico/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var ordemServico = await _context.OrdensServico.FindAsync(id);
@@ -278,6 +286,7 @@ namespace projetos.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> AprovarCliente(int id)
         {
             var ordem = await _context.OrdensServico.FindAsync(id);
@@ -289,6 +298,7 @@ namespace projetos.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> AtribuirMecanico(int id, string mecanicoId)
         {
             var ordem = await _context.OrdensServico.FindAsync(id);
@@ -300,6 +310,7 @@ namespace projetos.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Supervisor,Mecanico")]
         public async Task<IActionResult> Concluir(int id)
         {
             var ordem = await _context.OrdensServico.FindAsync(id);
@@ -364,6 +375,7 @@ namespace projetos.Controllers
         }
 
         // GET: OrdensServico/Minhas
+        [Authorize(Roles = "Mecanico,Admin,Supervisor")]
         public async Task<IActionResult> Minhas()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -373,7 +385,7 @@ namespace projetos.Controllers
             var lista = await _context.OrdensServico
                 .Include(o => o.Veiculo)
                 .Include(o => o.Servicos)
-                .Where(o => o.MecanicoId == userId)
+                .Where(o => o.MecanicoId == userId && o.DataConclusao == null)
                 .OrderBy(o => o.DataPrevista)
                 .ToListAsync();
 

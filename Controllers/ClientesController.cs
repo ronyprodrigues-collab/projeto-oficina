@@ -10,6 +10,7 @@ using Models;
 
 namespace projetos.Controllers
 {
+    [Authorize(Roles = "Admin,Supervisor")]
     public class ClientesController : Controller
     {
         private readonly OficinaDbContext _context;
@@ -155,3 +156,4 @@ namespace projetos.Controllers
         }
     }
 }
+using Microsoft.AspNetCore.Authorization;

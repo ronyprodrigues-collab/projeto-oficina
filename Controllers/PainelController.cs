@@ -50,14 +50,18 @@ namespace projetos.Controllers
             ViewData["PendentesAprovacao"] = pendentesAprovacao;
             ViewData["FaturamentoMes"] = faturamentoMes;
 
-            var labels = Enumerable.Range(0, 6)
-                .Select(i => monthStart.AddMonths(-i))
-                .Reverse()
-                .Select(d => d.ToString("MM/yyyy"))
-                .ToArray();
-
-            var rnd = new Random(2025);
-            var values = labels.Select(_ => Math.Round((decimal)rnd.Next(8000, 22000), 2)).ToArray();
+            var last6 = Enumerable.Range(0, 6).Select(i => monthStart.AddMonths(-i)).OrderBy(d => d).ToList();
+            var labels = last6.Select(d => d.ToString("MM/yyyy")).ToArray();
+            var values = new List<decimal>();
+            foreach (var d in last6)
+            {
+                var d2 = d.AddMonths(1);
+                var s = await _context.ServicoItem.Where(si => si.OrdemServico.DataConclusao >= d && si.OrdemServico.DataConclusao < d2)
+                    .SumAsync(si => (decimal?)si.Valor) ?? 0m;
+                var p = await _context.PecaItem.Where(pi => pi.OrdemServico.DataConclusao >= d && pi.OrdemServico.DataConclusao < d2)
+                    .SumAsync(pi => (decimal?)(pi.ValorUnitario * pi.Quantidade)) ?? 0m;
+                values.Add(s + p);
+            }
 
             ViewBag.ChartLabels = labels;
             ViewBag.ChartValues = values;
