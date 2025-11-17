@@ -1,86 +1,184 @@
 @model Models.OrdemServico
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Detalhes da OS";
+    bool isMecanico = User.IsInRole("Mecanico");
+    var totalServ = Model?.Servicos?.Sum(s => s.Valor) ?? 0m;
+    var totalPecas = Model?.Pecas?.Sum(p => p.ValorUnitario * p.Quantidade) ?? 0m;
+    var totalGeral = totalServ + totalPecas;
 }
 
-<h1>Details</h1>
+<h1>Detalhes da Ordem de Serviço</h1>
+@if (TempData["Error"] is string err && !string.IsNullOrWhiteSpace(err))
+{
+    <div class="alert alert-danger">@err</div>
+}
 
-<div>
-    <h4>OrdemServico</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Descricao)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Descricao)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.DataAbertura)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.DataAbertura)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.DataPrevista)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.DataPrevista)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.DataConclusao)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.DataConclusao)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Status)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Status)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.AprovadaCliente)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.AprovadaCliente)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Observacoes)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Observacoes)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Cliente)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Cliente.Id)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Veiculo)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Veiculo.Id)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Mecanico)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Mecanico.Id)
-        </dd>
-    </dl>
-</div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-    |
-    <a class="btn btn-sm btn-outline-primary" asp-action="AssignMechanic" asp-route-id="@Model?.Id">Atribuir mecânico</a>
-    <form asp-action="Approve" asp-route-id="@Model?.Id" method="post" class="d-inline">
-        <button type="submit" class="btn btn-sm btn-outline-success">Aprovar cliente</button>
-    </form>
-    <form asp-action="Conclude" asp-route-id="@Model?.Id" method="post" class="d-inline ms-1">
-        <button type="submit" class="btn btn-sm btn-outline-warning">Concluir OS</button>
-    </form>
+<h4>Dados da OS</h4>
+<hr />
+<div class="row">
+    <div class="col-md-12">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Cliente</label>
+                <input class="form-control" value="@Model?.Cliente?.Nome" disabled />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Veículo</label>
+                <input class="form-control" value="@Model?.Veiculo?.Placa" disabled />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Mecânico</label>
+                <input class="form-control" value="@(Model?.Mecanico != null ? (string.IsNullOrWhiteSpace(Model.Mecanico.NomeCompleto) ? Model.Mecanico.Email : Model.Mecanico.NomeCompleto) : "-")" disabled />
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Descrição</label>
+                <input class="form-control" value="@Model?.Descricao" disabled />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Data Prevista</label>
+                <input class="form-control" value="@Model?.DataPrevista?.ToString("dd/MM/yyyy")" disabled />
+            </div>
+            <div class="col-12">
+                <label class="form-label">Observações</label>
+                <input class="form-control" value="@Model?.Observacoes" disabled />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model?.MotivoReprovacao))
+            {
+                <div class="col-12">
+                    <div class="alert alert-danger mt-2">
+                        <strong>Motivo da reprovação:</strong> @Model!.MotivoReprovacao
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-3 mt-3">
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Serviços</h5>
+                </div>
+                <table class="table table-sm" id="tblServicos">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            @if (!isMecanico) { <th class="text-end">Valor (R$)</th> }
+                            <th class="text-end">Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model?.Servicos != null) {
+                            foreach (var s in Model.Servicos) {
+                                <tr>
+                                    <td>@s.Descricao</td>
+                                    @if (!isMecanico) { <td class="text-end">@s.Valor.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</td> }
+                                    <td class="text-end">@(s.Concluido ? Html.Raw("<span class='badge bg-success'>Concluído</span>") : Html.Raw("<span class='badge bg-secondary'>Pendente</span>"))</td>
+                                    <td class="text-end">
+                                        @if (isMecanico && !s.Concluido && Model?.DataConclusao == null) {
+                                            <form asp-action="ConcluirServicoItem" method="post" asp-route-id="@s.Id" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-primary">Concluir</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    @if (!isMecanico) { <tfoot><tr><th>Total</th><th class="text-end">@totalServ.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</th><th></th></tr></tfoot> }
+                </table>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">Peças</h5>
+                </div>
+                <table class="table table-sm" id="tblPecas">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            @if (!isMecanico) { <th class="text-end">Vlr. Unit. (R$)</th> }
+                            <th class="text-end">Qtd</th>
+                            @if (!isMecanico) { <th class="text-end">Total</th> }
+                            <th class="text-end">Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model?.Pecas != null) {
+                            foreach (var p in Model.Pecas) {
+                                var tot = p.ValorUnitario * p.Quantidade;
+                                <tr>
+                                    <td>@p.Nome</td>
+                                    @if (!isMecanico) { <td class="text-end">@p.ValorUnitario.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</td> }
+                                    <td class="text-end">@p.Quantidade</td>
+                                    @if (!isMecanico) { <td class="text-end">@tot.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</td> }
+                                    <td class="text-end">@(p.Concluido ? Html.Raw("<span class='badge bg-success'>Concluída</span>") : Html.Raw("<span class='badge bg-secondary'>Pendente</span>"))</td>
+                                    <td class="text-end">
+                                        @if (isMecanico && !p.Concluido && Model?.DataConclusao == null) {
+                                            <form asp-action="ConcluirPecaItem" method="post" asp-route-id="@p.Id" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-primary">Concluir</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    @if (!isMecanico) { <tfoot><tr><th colspan="3">Total</th><th class="text-end">@totalPecas.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</th><th></th></tr></tfoot> }
+                </table>
+            </div>
+        </div>
+
+        @if (!isMecanico) {
+            <div class="row mt-2">
+                <div class="col-12 text-end">
+                    <h5 class="m-0">Total Geral: <span>@totalGeral.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))</span></h5>
+                </div>
+            </div>
+        }
+
+        <div class="mt-3">
+            <div class="btn-toolbar" role="toolbar">
+                <div class="btn-group btn-group-sm me-2" role="group">
+                    @if (!isMecanico && string.IsNullOrWhiteSpace(Model?.MotivoReprovacao))
+                    {
+                        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model?.Id">Editar</a>
+                    }
+                    <a class="btn btn-outline-secondary" asp-action="Index">Voltar</a>
+                </div>
+                <div class="btn-group btn-group-sm me-2" role="group">
+                    @if (!isMecanico) {
+                        <a class="btn btn-outline-info" asp-action="AssignMechanic" asp-route-id="@Model?.Id">Atribuir mecânico</a>
+                        @if (Model?.AprovadaCliente == true)
+                        {
+                            <span class="badge bg-success align-self-center ms-2">Cliente aprovado</span>
+                            <form asp-action="Reject" asp-route-id="@Model?.Id" method="post" class="d-inline ms-2">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="motivoReprovacao" class="form-control" placeholder="Motivo da reprovação" required />
+                                    <button type="submit" class="btn btn-outline-danger">Reprovar</button>
+                                </div>
+                            </form>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(Model?.MotivoReprovacao))
+                        {
+                            <span class="badge bg-danger ms-2">Reprovada</span>
+                        }
+                        else
+                        {
+                            <form asp-action="Approve" asp-route-id="@Model?.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-success">Aprovar cliente</button>
+                            </form>
+                        }
+                    }
+                    @if (Model?.DataConclusao == null && string.IsNullOrWhiteSpace(Model?.MotivoReprovacao)) {
+                        <form asp-action="Conclude" asp-route-id="@Model?.Id" method="post" class="d-inline ms-1">
+                            <button type="submit" class="btn btn-outline-warning">Concluir OS</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

@@ -1,0 +1,40 @@
+@model Models.PecaEstoque
+@{
+    ViewData["Title"] = "Movimentações";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1>@Model.Nome</h1>
+        <p class="text-muted">Saldo atual: <strong>@Model.SaldoAtual @Model.UnidadeMedida</strong></p>
+    </div>
+    <div>
+        <a asp-controller="MovimentacaoEstoque" asp-action="Entrada" class="btn btn-success">Registrar entrada</a>
+        <a asp-controller="MovimentacaoEstoque" asp-action="Saida" class="btn btn-outline-warning ms-2">Registrar saída</a>
+        <a asp-action="Index" class="btn btn-secondary ms-2">Voltar</a>
+    </div>
+</div>
+
+<table class="table table-striped table-sm">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th class="text-end">Quantidade</th>
+            <th class="text-end">Valor unitário</th>
+            <th>Observação</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var mov in Model.Movimentacoes)
+    {
+        <tr class="@(mov.Tipo == "Saida" ? "table-danger" : "table-success")">
+            <td>@mov.DataMovimentacao.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+            <td>@mov.Tipo</td>
+            <td class="text-end">@mov.Quantidade</td>
+            <td class="text-end">@mov.ValorUnitario.ToString("C")</td>
+            <td>@mov.Observacao</td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,108 @@
+@model Models.ViewModels.GerenciarUsuariosOficinaViewModel
+@{
+    ViewData["Title"] = "Usuários da Oficina";
+}
+
+<h1>Usuários - @Model.OficinaNome</h1>
+<p class="text-muted">Grupo: @Model.GrupoNome</p>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+@if (TempData["Msg"] != null)
+{
+    <div class="alert alert-success">@TempData["Msg"]</div>
+}
+
+<div class="card mb-4">
+    <div class="card-header">Adicionar usuário</div>
+    <div class="card-body">
+        @if (!Model.Disponiveis.Any())
+        {
+            <div class="text-muted">Todos os usuários elegíveis já estão vinculados a esta oficina.</div>
+        }
+        else
+        {
+            <form asp-action="AdicionarUsuario" method="post" class="row g-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="OficinaId" />
+                <div class="col-md-6">
+                    <label class="form-label">Usuário</label>
+                    <select class="form-select" asp-for="UsuarioSelecionadoId">
+                        <option value="">Selecione</option>
+                        @foreach (var usuario in Model.Disponiveis)
+                        {
+                            <option value="@usuario.UsuarioId">@usuario.Nome (@usuario.Perfil)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Perfil</label>
+                    <select class="form-select" asp-for="PerfilNovoUsuario">
+                        <option value="Admin">Admin</option>
+                        <option value="Supervisor" selected>Supervisor</option>
+                        <option value="Mecanico">Mecânico</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">Adicionar</button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Usuários vinculados</div>
+    <div class="card-body p-0">
+        @if (!Model.Usuarios.Any())
+        {
+            <div class="p-3 text-muted">Nenhum usuário vinculado ainda.</div>
+        }
+        else
+        {
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Perfil</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var vinculo in Model.Usuarios)
+                {
+                    <tr>
+                        <td>@vinculo.Nome</td>
+                        <td>@vinculo.Perfil</td>
+                        <td>
+                            @if (vinculo.Ativo)
+                            {
+                                <span class="badge bg-success">Ativo</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inativo</span>
+                            }
+                        </td>
+                        <td>
+                            <form asp-action="AlternarUsuario" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@vinculo.VínculoId" />
+                                <input type="hidden" name="ativar" value="@(vinculo.Ativo ? "false" : "true")" />
+                                <button type="submit" class="btn btn-sm @(vinculo.Ativo ? "btn-outline-danger" : "btn-outline-success")">
+                                    @(vinculo.Ativo ? "Desativar" : "Reativar")
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<a asp-action="DetalhesGrupo" asp-route-id="@Model.GrupoId" class="btn btn-secondary mt-3">Voltar</a>

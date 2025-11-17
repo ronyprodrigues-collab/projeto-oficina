@@ -240,9 +240,27 @@ namespace projetos.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Bairro")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CEP")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CNPJ")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("CPF_CNPJ")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Cidade")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DataNascimento")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -252,11 +270,30 @@ namespace projetos.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Estado")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Numero")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Observacoes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Responsavel")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Telefone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TipoCliente")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -281,6 +318,12 @@ namespace projetos.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("LogoPath")
                         .HasColumnType("nvarchar(max)");
 
@@ -288,9 +331,247 @@ namespace projetos.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PlanoAtual")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.ToTable("Configuracoes");
+                });
+
+            modelBuilder.Entity("Models.GrupoOficina", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CorPrimaria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CorSecundaria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DiretorId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Plano")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DiretorId");
+
+                    b.HasIndex("Nome")
+                        .IsUnique();
+
+                    b.ToTable("Grupos");
+                });
+
+            modelBuilder.Entity("Models.MovimentacaoEstoque", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DataMovimentacao")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MovimentacaoEntradaReferenciaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrdemServicoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PecaEstoqueId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantidade")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("QuantidadeRestante")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("ValorUnitario")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovimentacaoEntradaReferenciaId");
+
+                    b.HasIndex("OficinaId");
+
+                    b.HasIndex("PecaEstoqueId");
+
+                    b.ToTable("MovimentacoesEstoque");
+                });
+
+            modelBuilder.Entity("Models.Oficina", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminProprietarioId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CorPrimaria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CorSecundaria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("GrupoOficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LogoPath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Plano")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminProprietarioId");
+
+                    b.HasIndex("GrupoOficinaId", "Nome")
+                        .IsUnique();
+
+                    b.ToTable("Oficinas");
+                });
+
+            modelBuilder.Entity("Models.OficinaCliente", b =>
+                {
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observacao")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("VinculadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("OficinaId", "ClienteId");
+
+                    b.HasIndex("ClienteId");
+
+                    b.ToTable("OficinasClientes");
+                });
+
+            modelBuilder.Entity("Models.OficinaUsuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Perfil")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("VinculadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.HasIndex("OficinaId", "UsuarioId")
+                        .IsUnique();
+
+                    b.ToTable("OficinasUsuarios");
+                });
+
+            modelBuilder.Entity("Models.OficinaVeiculo", b =>
+                {
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VeiculoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observacao")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("VinculadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("OficinaId", "VeiculoId");
+
+                    b.HasIndex("VeiculoId");
+
+                    b.ToTable("OficinasVeiculos");
                 });
 
             modelBuilder.Entity("Models.OrdemServico", b =>
@@ -316,15 +597,30 @@ namespace projetos.Migrations
                     b.Property<DateTime?>("DataPrevista")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Descricao")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("EstoqueReservado")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("MecanicoId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("MotivoReprovacao")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Observacoes")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -339,9 +635,61 @@ namespace projetos.Migrations
 
                     b.HasIndex("MecanicoId");
 
+                    b.HasIndex("OficinaId");
+
                     b.HasIndex("VeiculoId");
 
                     b.ToTable("OrdensServico");
+                });
+
+            modelBuilder.Entity("Models.PecaEstoque", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Codigo")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("EstoqueMinimo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("OficinaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("PrecoVenda")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaldoAtual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("UnidadeMedida")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OficinaId");
+
+                    b.ToTable("PecaEstoques");
                 });
 
             modelBuilder.Entity("Models.PecaItem", b =>
@@ -352,11 +700,23 @@ namespace projetos.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Concluido")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("OrdemServicoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PecaEstoqueId")
                         .HasColumnType("int");
 
                     b.Property<int>("Quantidade")
@@ -370,6 +730,8 @@ namespace projetos.Migrations
 
                     b.HasIndex("OrdemServicoId");
 
+                    b.HasIndex("PecaEstoqueId");
+
                     b.ToTable("PecaItem");
                 });
 
@@ -381,9 +743,18 @@ namespace projetos.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Concluido")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Descricao")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<int>("OrdemServicoId")
                         .HasColumnType("int");
@@ -412,6 +783,12 @@ namespace projetos.Migrations
 
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Marca")
                         .IsRequired()
@@ -483,6 +860,117 @@ namespace projetos.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Models.GrupoOficina", b =>
+                {
+                    b.HasOne("Models.ApplicationUser", "Diretor")
+                        .WithMany("GruposDiretor")
+                        .HasForeignKey("DiretorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Diretor");
+                });
+
+            modelBuilder.Entity("Models.MovimentacaoEstoque", b =>
+                {
+                    b.HasOne("Models.MovimentacaoEstoque", "MovimentacaoEntradaReferencia")
+                        .WithMany("SaidasRelacionadas")
+                        .HasForeignKey("MovimentacaoEntradaReferenciaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany()
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Models.PecaEstoque", "PecaEstoque")
+                        .WithMany("Movimentacoes")
+                        .HasForeignKey("PecaEstoqueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MovimentacaoEntradaReferencia");
+
+                    b.Navigation("Oficina");
+
+                    b.Navigation("PecaEstoque");
+                });
+
+            modelBuilder.Entity("Models.Oficina", b =>
+                {
+                    b.HasOne("Models.ApplicationUser", "AdminProprietario")
+                        .WithMany()
+                        .HasForeignKey("AdminProprietarioId");
+
+                    b.HasOne("Models.GrupoOficina", "Grupo")
+                        .WithMany("Oficinas")
+                        .HasForeignKey("GrupoOficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminProprietario");
+
+                    b.Navigation("Grupo");
+                });
+
+            modelBuilder.Entity("Models.OficinaCliente", b =>
+                {
+                    b.HasOne("Models.Cliente", "Cliente")
+                        .WithMany("Oficinas")
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany("Clientes")
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+
+                    b.Navigation("Oficina");
+                });
+
+            modelBuilder.Entity("Models.OficinaUsuario", b =>
+                {
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany("Usuarios")
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Models.ApplicationUser", "Usuario")
+                        .WithMany("Oficinas")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Oficina");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("Models.OficinaVeiculo", b =>
+                {
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany("Veiculos")
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Models.Veiculo", "Veiculo")
+                        .WithMany("Oficinas")
+                        .HasForeignKey("VeiculoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Oficina");
+
+                    b.Navigation("Veiculo");
+                });
+
             modelBuilder.Entity("Models.OrdemServico", b =>
                 {
                     b.HasOne("Models.Cliente", "Cliente")
@@ -495,6 +983,12 @@ namespace projetos.Migrations
                         .WithMany()
                         .HasForeignKey("MecanicoId");
 
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany()
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Models.Veiculo", "Veiculo")
                         .WithMany()
                         .HasForeignKey("VeiculoId")
@@ -505,7 +999,20 @@ namespace projetos.Migrations
 
                     b.Navigation("Mecanico");
 
+                    b.Navigation("Oficina");
+
                     b.Navigation("Veiculo");
+                });
+
+            modelBuilder.Entity("Models.PecaEstoque", b =>
+                {
+                    b.HasOne("Models.Oficina", "Oficina")
+                        .WithMany()
+                        .HasForeignKey("OficinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Oficina");
                 });
 
             modelBuilder.Entity("Models.PecaItem", b =>
@@ -516,7 +1023,14 @@ namespace projetos.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Models.PecaEstoque", "PecaEstoque")
+                        .WithMany()
+                        .HasForeignKey("PecaEstoqueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("OrdemServico");
+
+                    b.Navigation("PecaEstoque");
                 });
 
             modelBuilder.Entity("Models.ServicoItem", b =>
@@ -541,8 +1055,36 @@ namespace projetos.Migrations
                     b.Navigation("Cliente");
                 });
 
+            modelBuilder.Entity("Models.ApplicationUser", b =>
+                {
+                    b.Navigation("GruposDiretor");
+
+                    b.Navigation("Oficinas");
+                });
+
             modelBuilder.Entity("Models.Cliente", b =>
                 {
+                    b.Navigation("Oficinas");
+
+                    b.Navigation("Veiculos");
+                });
+
+            modelBuilder.Entity("Models.GrupoOficina", b =>
+                {
+                    b.Navigation("Oficinas");
+                });
+
+            modelBuilder.Entity("Models.MovimentacaoEstoque", b =>
+                {
+                    b.Navigation("SaidasRelacionadas");
+                });
+
+            modelBuilder.Entity("Models.Oficina", b =>
+                {
+                    b.Navigation("Clientes");
+
+                    b.Navigation("Usuarios");
+
                     b.Navigation("Veiculos");
                 });
 
@@ -551,6 +1093,16 @@ namespace projetos.Migrations
                     b.Navigation("Pecas");
 
                     b.Navigation("Servicos");
+                });
+
+            modelBuilder.Entity("Models.PecaEstoque", b =>
+                {
+                    b.Navigation("Movimentacoes");
+                });
+
+            modelBuilder.Entity("Models.Veiculo", b =>
+                {
+                    b.Navigation("Oficinas");
                 });
 #pragma warning restore 612, 618
         }

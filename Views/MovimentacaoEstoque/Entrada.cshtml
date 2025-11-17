@@ -1,0 +1,54 @@
+@model Models.ViewModels.MovimentacaoEntradaViewModel
+@{
+    ViewData["Title"] = "Entrada de estoque";
+    var pecas = ViewBag.Pecas as IEnumerable<Models.PecaEstoque>;
+}
+
+<h1>Registrar entrada</h1>
+
+<form asp-action="Entrada" method="post" class="mt-3">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="PecaEstoqueId" class="form-label"></label>
+        <select asp-for="PecaEstoqueId" class="form-select">
+            <option value="">Selecione...</option>
+            @if (pecas != null)
+            {
+                foreach (var p in pecas)
+                {
+                    <option value="@p.Id">@p.Nome (@p.Codigo)</option>
+                }
+            }
+        </select>
+        <span asp-validation-for="PecaEstoqueId" class="text-danger"></span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label asp-for="Quantidade" class="form-label"></label>
+            <input asp-for="Quantidade" class="form-control" />
+            <span asp-validation-for="Quantidade" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="ValorUnitario" class="form-label"></label>
+            <input asp-for="ValorUnitario" class="form-control" />
+            <span asp-validation-for="ValorUnitario" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <label asp-for="Observacao" class="form-label"></label>
+        <textarea asp-for="Observacao" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Observacao" class="text-danger"></span>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Registrar</button>
+        <a asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}

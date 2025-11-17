@@ -1,10 +1,10 @@
 @model Models.Veiculo
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Detalhes do Veículo";
 }
 
-<h1>Details</h1>
+<h1>Detalhes do Veículo</h1>
 
 <div>
     <h4>Veiculo</h4>
@@ -35,14 +35,16 @@
             @Html.DisplayFor(model => model.Ano)
         </dd>
         <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Cliente)
+            Cliente
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Cliente.Id)
+            @(Model.Cliente != null ? Model.Cliente.Nome : "-")
         </dd>
     </dl>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+<div class="mt-3">
+    <div class="btn-group btn-group-sm" role="group">
+        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model?.Id">Editar</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Voltar</a>
+    </div>
 </div>

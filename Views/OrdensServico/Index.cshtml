@@ -1,48 +1,53 @@
 @model IEnumerable<Models.OrdemServico>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Ordens de Serviço";
 }
 
-<h1>Index</h1>
-
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
+<div class="d-flex align-items-center mb-3">
+    <h1 class="m-0 flex-grow-1 text-center">Ordens de Serviço</h1>
+    @if (User.IsInRole("Admin") || User.IsInRole("Supervisor"))
+    {
+        <a asp-action="Create" class="btn btn-primary ms-2">Nova OS</a>
+    }
+</div>
+@if (User.IsInRole("Admin") || User.IsInRole("Supervisor"))
+{
+    var pendentes = ViewBag.Pendentes as IEnumerable<Models.OrdemServico>;
+    if (pendentes != null && pendentes.Any())
+    {
+        <div class="alert alert-warning">
+            <h5 class="alert-heading">Ordens aguardando aprovação</h5>
+            <ul class="mb-0">
+                @foreach (var os in pendentes.Take(5))
+                {
+                    <li>
+                        <strong>#@os.Id</strong> - @os.Descricao (Cliente: @(os.Cliente?.Nome ?? "-"))
+                        <a class="ms-2" asp-action="Details" asp-route-id="@os.Id">Abrir</a>
+                    </li>
+                }
+            </ul>
+            @if (pendentes.Count() > 5)
+            {
+                <div class="mt-2 text-muted">... e mais @(pendentes.Count() - 5) pendentes.</div>
+            }
+        </div>
+    }
+}
 <table class="table table-striped table-hover datatable">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Descricao)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DataAbertura)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DataPrevista)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DataConclusao)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Status)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.AprovadaCliente)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Observacoes)
-            </th>
-            <th class="dt-filter">
-                @Html.DisplayNameFor(model => model.Cliente)
-            </th>
-            <th class="dt-filter">
-                @Html.DisplayNameFor(model => model.Veiculo)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Mecanico)
-            </th>
-            <th></th>
+            <th>Descrição</th>
+            <th><span>Data</span><br /><span>Abertura</span></th>
+            <th><span>Data</span><br /><span>Prevista</span></th>
+            <th><span>Data</span><br /><span>Conclusão</span></th>
+            <th>Status</th>
+            <th><span>Status</span><br /><span>Cliente</span></th>
+            <th>Observações</th>
+            <th class="dt-filter">Cliente</th>
+            <th class="dt-filter">Veículo</th>
+            <th>Mecânico</th>
+            <th style="width:180px;">Ações</th>
         </tr>
     </thead>
     <tbody>
@@ -64,7 +69,18 @@
                 @Html.DisplayFor(modelItem => item.Status)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.AprovadaCliente)
+                @if (item.AprovadaCliente)
+                {
+                    <span class="badge bg-success">Aprovada</span>
+                }
+                else if (!string.IsNullOrWhiteSpace(item.MotivoReprovacao))
+                {
+                    <span class="badge bg-danger" title="@item.MotivoReprovacao">Reprovada</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark">Aguardando</span>
+                }
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Observacoes)
@@ -76,14 +92,75 @@
                 @(item.Veiculo != null ? ($"{item.Veiculo.Marca} {item.Veiculo.Modelo} - {item.Veiculo.Placa}") : "-")
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Mecanico.Id)
+                @(item.Mecanico != null ? (string.IsNullOrWhiteSpace(item.Mecanico.NomeCompleto) ? item.Mecanico.Email : item.Mecanico.NomeCompleto) : "-")
             </td>
             <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                <div class="btn-group btn-group-sm" role="group">
+                    @if ((User.IsInRole("Admin") || User.IsInRole("Supervisor")) && string.IsNullOrWhiteSpace(item.MotivoReprovacao))
+                    {
+                        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id">Editar</a>
+                        <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Excluir</a>
+                    }
+                    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalhes</a>
+                </div>
             </td>
         </tr>
 }
     </tbody>
 </table>
+
+@section Scripts {
+    <script>
+        $(function(){
+            var $t = $('table.datatable');
+            if (!$t.length) return;
+            if ($.fn.DataTable.isDataTable($t)) { $t.DataTable().destroy(); }
+            $t.find('thead tr.dt-filters').remove();
+
+            var $thead = $t.find('thead');
+            var $header = $thead.find('tr').first();
+            var cols = $header.find('th').length;
+            var $f = $('<tr class="dt-filters"/>');
+            for (let i=0;i<cols;i++){
+                var $th = $('<th/>');
+                if (i === 7 || i === 8) { // Cliente e Veículo
+                    $th.append('<select class="form-select form-select-sm"><option value="">Todos</option></select>');
+                }
+                $f.append($th);
+            }
+            $header.after($f);
+
+            var dt = $t.DataTable({
+                dom: 'Bfrtip',
+                buttons: [
+                    { extend: 'pageLength', className: 'btn btn-sm btn-primary' },
+                    { extend: 'copy', className: 'btn btn-sm btn-primary' },
+                    { extend: 'csv', className: 'btn btn-sm btn-primary' },
+                    { extend: 'excel', className: 'btn btn-sm btn-primary' },
+                    { extend: 'pdf', className: 'btn btn-sm btn-primary' },
+                    { extend: 'print', className: 'btn btn-sm btn-primary' },
+                    { extend: 'colvis', className: 'btn btn-sm btn-primary' }
+                ],
+                paging: true,
+                lengthChange: true,
+                stateSave: true,
+                orderCellsTop: true,
+                autoWidth: false,
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json' }
+            });
+
+            function fillSelect(ci){
+                var $sel = $f.find('th').eq(ci).find('select');
+                dt.column(ci).data().unique().sort().each(function(d){
+                    var text = $('<div>').html(d).text().trim();
+                    if (text && $sel.find('option').filter(function(){return $(this).text()===text;}).length===0){
+                        $sel.append(new Option(text,text));
+                    }
+                });
+                $sel.on('change', function(){ var v=$.fn.dataTable.util.escapeRegex($(this).val()); dt.column(ci).search(v? '^'+v+'$' : '', true, false).draw(); });
+            }
+            fillSelect(7); fillSelect(8);
+            $t.attr('data-dt-initialized','1');
+        });
+    </script>
+}

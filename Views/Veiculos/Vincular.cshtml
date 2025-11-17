@@ -1,0 +1,59 @@
+@model Models.ViewModels.VincularVeiculoViewModel
+@{
+    ViewData["Title"] = "Vincular Veículo";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Vincular veículo existente</h1>
+    <a asp-action="Index" class="btn btn-secondary">Voltar</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="busca" value="@Model.Busca" class="form-control" placeholder="Buscar por placa, marca ou modelo" />
+    </div>
+    <div class="col-md-3 d-grid">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+</form>
+
+@if (!Model.Veiculos.Any())
+{
+    <div class="alert alert-info">
+        Nenhum veículo disponível para vínculo nesta oficina.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Cliente</th>
+                    <th>Origem</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var veiculo in Model.Veiculos)
+            {
+                <tr>
+                    <td>@veiculo.Placa</td>
+                    <td>@veiculo.Modelo</td>
+                    <td>@veiculo.Cliente</td>
+                    <td>@veiculo.Origem</td>
+                    <td class="text-end">
+                        <form asp-action="VincularVeiculo" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="veiculoId" value="@veiculo.Id" />
+                            <button type="submit" class="btn btn-sm btn-success">Vincular</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

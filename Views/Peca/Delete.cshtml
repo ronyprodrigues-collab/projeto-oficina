@@ -1,0 +1,16 @@
+@model Models.PecaEstoque
+@{
+    ViewData["Title"] = "Excluir peça";
+}
+
+<h1>Excluir peça</h1>
+
+<div class="alert alert-warning">
+    Tem certeza que deseja remover a peça <strong>@Model.Nome</strong>?
+</div>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Excluir</button>
+    <a asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+</form>

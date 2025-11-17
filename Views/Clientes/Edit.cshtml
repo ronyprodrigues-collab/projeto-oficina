@@ -1,54 +1,91 @@
 @model Models.Cliente
 
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Editar Cliente";
 }
 
-<h1>Edit</h1>
+<h1>Editar Cliente</h1>
 
 <h4>Cliente</h4>
 <hr />
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-lg-10 col-xl-8">
         <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div asp-validation-summary="All" class="text-danger mb-2"></div>
             <input type="hidden" asp-for="Id" />
-            <div class="form-group">
-                <label asp-for="Nome" class="control-label"></label>
-                <input asp-for="Nome" class="form-control" />
-                <span asp-validation-for="Nome" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="CPF_CNPJ" class="control-label"></label>
-                <input asp-for="CPF_CNPJ" class="form-control" />
-                <span asp-validation-for="CPF_CNPJ" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Telefone" class="control-label"></label>
-                <input asp-for="Telefone" class="form-control" />
-                <span asp-validation-for="Telefone" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Email" class="control-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Endereco" class="control-label"></label>
-                <input asp-for="Endereco" class="form-control" />
-                <span asp-validation-for="Endereco" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
+            <partial name="_ClienteFormFields" model="Model" />
+            <div class="form-group mt-3">
+                <button type="submit" class="btn btn-success">Salvar</button>
+                <a asp-action="Index" class="btn btn-secondary ms-2">Voltar</a>
             </div>
         </form>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const tipoField = document.querySelector('[name="TipoCliente"]');
+            const nomeLabel = document.getElementById('lblNome');
+            const cpfGroup = document.getElementById('cpfGroup');
+            const cnpjGroup = document.getElementById('cnpjGroup');
+            const cpfInput = document.getElementById('CPF_CNPJ');
+            const cnpjInput = document.getElementById('CNPJ');
+            const cepInput = document.getElementById('CEP');
+
+            function updateFields() {
+                const tipo = tipoField?.value || 'PF';
+                if (tipo === 'PJ') {
+                    nomeLabel.textContent = 'Empresa';
+                    cnpjGroup?.classList.remove('d-none');
+                    cpfGroup?.classList.add('d-none');
+                } else {
+                    nomeLabel.textContent = 'Nome';
+                    cnpjGroup?.classList.add('d-none');
+                    cpfGroup?.classList.remove('d-none');
+                }
+            }
+
+            function formatWithPattern(value, pattern) {
+                const digits = (value || '').replace(/\D/g, '');
+                let formatted = '';
+                let digitIndex = 0;
+
+                for (let i = 0; i < pattern.length; i++) {
+                    const char = pattern[i];
+                    if (char === '#') {
+                        if (digitIndex < digits.length) {
+                            formatted += digits[digitIndex++];
+                        } else {
+                            break;
+                        }
+                    } else {
+                        if (digitIndex < digits.length) {
+                            formatted += char;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                return formatted;
+            }
+
+            function attachMask(input, pattern) {
+                if (!input) return;
+                input.addEventListener('input', () => {
+                    input.value = formatWithPattern(input.value, pattern);
+                });
+            }
+
+            tipoField?.addEventListener('change', updateFields);
+            updateFields();
+
+            attachMask(cpfInput, '###.###.###-##');
+            attachMask(cnpjInput, '##.###.###/####-##');
+            attachMask(cepInput, '#####-###');
+        })();
+    </script>
 }

@@ -1,12 +1,14 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Data;
 using Models;
+using Models.ViewModels;
+using Services;
 
 namespace projetos.Controllers
 {
@@ -14,153 +16,256 @@ namespace projetos.Controllers
     public class VeiculosController : Controller
     {
         private readonly OficinaDbContext _context;
+        private readonly IOficinaContext _oficinaContext;
 
-        public VeiculosController(OficinaDbContext context)
+        public VeiculosController(OficinaDbContext context, IOficinaContext oficinaContext)
         {
             _context = context;
+            _oficinaContext = oficinaContext;
         }
 
-        // GET: Veiculos
         public async Task<IActionResult> Index()
         {
-            var oficinaDbContext = _context.Veiculos.Include(v => v.Cliente);
-            return View(await oficinaDbContext.ToListAsync());
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var veiculos = await _context.OficinasVeiculos
+                .Where(ov => ov.OficinaId == oficinaId)
+                .Select(ov => ov.Veiculo)
+                .Include(v => v.Cliente)
+                .Include(v => v.Oficinas)
+                    .ThenInclude(o => o.Oficina)
+                .AsNoTracking()
+                .ToListAsync();
+            return View(veiculos);
         }
 
-        // GET: Veiculos/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var veiculo = await _context.Veiculos
                 .Include(v => v.Cliente)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (veiculo == null)
-            {
-                return NotFound();
-            }
+                .Include(v => v.Oficinas)
+                .ThenInclude(o => o.Oficina)
+                .FirstOrDefaultAsync(v => v.Id == id && v.Oficinas.Any(o => o.OficinaId == oficinaId));
 
+            if (veiculo == null) return NotFound();
             return View(veiculo);
         }
 
-        // GET: Veiculos/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            ViewData["ClienteId"] = new SelectList(_context.Clientes, "Id", "Id");
+            await PopularClientesAsync();
             return View();
         }
 
-        // POST: Veiculos/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Placa,Marca,Modelo,Ano,ClienteId")] Veiculo veiculo)
         {
+            foreach (var key in ModelState.Keys.Where(k => k.StartsWith("Cliente")).ToList())
+            {
+                ModelState.Remove(key);
+            }
+
             if (ModelState.IsValid)
             {
-                _context.Add(veiculo);
+                var oficinaId = await ObterOficinaAtualIdAsync();
+                _context.Veiculos.Add(veiculo);
                 await _context.SaveChangesAsync();
+
+                _context.OficinasVeiculos.Add(new OficinaVeiculo
+                {
+                    OficinaId = oficinaId,
+                    VeiculoId = veiculo.Id,
+                    VinculadoEm = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Veículo cadastrado e vinculado à oficina.";
+                TempData["ClearTableState"] = true;
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes, "Id", "Id", veiculo.ClienteId);
+
+            TempData["Error"] = "Verifique os dados informados.";
+            await PopularClientesAsync(veiculo.ClienteId);
             return View(veiculo);
         }
 
-        // GET: Veiculos/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var veiculo = await _context.Veiculos.FindAsync(id);
-            if (veiculo == null)
-            {
-                return NotFound();
-            }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes, "Id", "Id", veiculo.ClienteId);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var veiculo = await _context.Veiculos
+                .FirstOrDefaultAsync(v => v.Id == id && v.Oficinas.Any(o => o.OficinaId == oficinaId));
+            if (veiculo == null) return NotFound();
+
+            await PopularClientesAsync(veiculo.ClienteId);
             return View(veiculo);
         }
 
-        // POST: Veiculos/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Placa,Marca,Modelo,Ano,ClienteId")] Veiculo veiculo)
         {
-            if (id != veiculo.Id)
+            if (id != veiculo.Id) return NotFound();
+
+            foreach (var key in ModelState.Keys.Where(k => k.StartsWith("Cliente")).ToList())
             {
-                return NotFound();
+                ModelState.Remove(key);
             }
 
             if (ModelState.IsValid)
             {
-                try
-                {
-                    _context.Update(veiculo);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!VeiculoExists(veiculo.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                var oficinaId = await ObterOficinaAtualIdAsync();
+                var original = await _context.Veiculos
+                    .FirstOrDefaultAsync(v => v.Id == id && v.Oficinas.Any(o => o.OficinaId == oficinaId));
+                if (original == null) return NotFound();
+
+                _context.Entry(original).CurrentValues.SetValues(veiculo);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Veículo atualizado.";
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes, "Id", "Id", veiculo.ClienteId);
+
+            TempData["Error"] = "Dados inválidos na edição.";
+            await PopularClientesAsync(veiculo.ClienteId);
             return View(veiculo);
         }
 
-        // GET: Veiculos/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var veiculo = await _context.Veiculos
                 .Include(v => v.Cliente)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (veiculo == null)
-            {
-                return NotFound();
-            }
+                .FirstOrDefaultAsync(v => v.Id == id && v.Oficinas.Any(o => o.OficinaId == oficinaId));
 
+            if (veiculo == null) return NotFound();
             return View(veiculo);
         }
 
-        // POST: Veiculos/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var veiculo = await _context.Veiculos.FindAsync(id);
-            if (veiculo != null)
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var veiculo = await _context.Veiculos
+                .Include(v => v.Oficinas)
+                .FirstOrDefaultAsync(v => v.Id == id && v.Oficinas.Any(o => o.OficinaId == oficinaId));
+
+            if (veiculo == null)
             {
-                _context.Veiculos.Remove(veiculo);
+                TempData["Error"] = "Veículo não localizado.";
+                return RedirectToAction(nameof(Index));
             }
 
+            _context.Veiculos.Remove(veiculo);
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Veículo removido.";
             return RedirectToAction(nameof(Index));
         }
 
-        private bool VeiculoExists(int id)
+        public async Task<IActionResult> Vincular(string? busca)
         {
-            return _context.Veiculos.Any(e => e.Id == id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var query = _context.Veiculos
+                .Where(v => !v.Oficinas.Any(o => o.OficinaId == oficinaId));
+
+            if (!string.IsNullOrWhiteSpace(busca))
+            {
+                query = query.Where(v =>
+                    v.Placa.Contains(busca) ||
+                    v.Modelo.Contains(busca) ||
+                    v.Marca.Contains(busca));
+            }
+
+            var candidatos = await query
+                .Select(v => new
+                {
+                    v.Id,
+                    v.Placa,
+                    v.Modelo,
+                    Cliente = v.Cliente != null ? v.Cliente.Nome : string.Empty,
+                    Origem = v.Oficinas.Select(o => o.Oficina.Nome)
+                })
+                .OrderBy(v => v.Placa)
+                .ToListAsync();
+
+            var viewModel = new VincularVeiculoViewModel
+            {
+                Busca = busca,
+                Veiculos = candidatos.Select(v => new VeiculoDisponivelViewModel
+                {
+                    Id = v.Id,
+                    Placa = v.Placa,
+                    Modelo = v.Modelo,
+                    Cliente = v.Cliente,
+                    Origem = v.Origem.Any() ? string.Join(", ", v.Origem) : "Sem origem definida"
+                }).ToList()
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VincularVeiculo(int veiculoId)
+        {
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var existe = await _context.OficinasVeiculos
+                .AnyAsync(ov => ov.OficinaId == oficinaId && ov.VeiculoId == veiculoId);
+            if (existe)
+            {
+                TempData["Error"] = "Veículo já disponível nesta oficina.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var veiculo = await _context.Veiculos.FindAsync(veiculoId);
+            if (veiculo == null)
+            {
+                TempData["Error"] = "Veículo não encontrado.";
+                return RedirectToAction(nameof(Vincular));
+            }
+
+            _context.OficinasVeiculos.Add(new OficinaVeiculo
+            {
+                OficinaId = oficinaId,
+                VeiculoId = veiculoId,
+                VinculadoEm = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Veículo vinculado.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        private async Task<int> ObterOficinaAtualIdAsync()
+        {
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null)
+            {
+                throw new InvalidOperationException("Nenhuma oficina selecionada.");
+            }
+            return oficina.Id;
+        }
+
+        private async Task PopularClientesAsync(int? selecionado = null)
+        {
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var clientes = await _context.OficinasClientes
+                .Where(oc => oc.OficinaId == oficinaId)
+                .Select(oc => new
+                {
+                    oc.Cliente.Id,
+                    oc.Cliente.Nome
+                })
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            ViewData["ClienteId"] = new SelectList(clientes, "Id", "Nome", selecionado);
         }
     }
 }
-using Microsoft.AspNetCore.Authorization;

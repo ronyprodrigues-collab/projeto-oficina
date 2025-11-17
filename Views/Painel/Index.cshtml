@@ -1,81 +1,596 @@
 @{
     ViewData["Title"] = "Painel";
+
     var labelsJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.ChartLabels ?? Array.Empty<string>());
     var valuesJson = System.Text.Json.JsonSerializer.Serialize(ViewBag.ChartValues ?? Array.Empty<decimal>());
+
+    var statusLabels = System.Text.Json.JsonSerializer.Serialize(ViewBag.StatusLabels ?? Array.Empty<string>());
+    var statusValues = System.Text.Json.JsonSerializer.Serialize(ViewBag.StatusValues ?? Array.Empty<int>());
+
+    var topServLabels = System.Text.Json.JsonSerializer.Serialize(ViewBag.TopServicosLabels ?? Array.Empty<string>());
+    var topServValues = System.Text.Json.JsonSerializer.Serialize(ViewBag.TopServicosValues ?? Array.Empty<int>());
+
+    var servicosMensal = System.Text.Json.JsonSerializer.Serialize(ViewBag.ServicosMensal ?? Array.Empty<decimal>());
+    var pecasMensal = System.Text.Json.JsonSerializer.Serialize(ViewBag.PecasMensal ?? Array.Empty<decimal>());
+
+    var mecLabels = System.Text.Json.JsonSerializer.Serialize(ViewBag.MecLabels ?? Array.Empty<string>());
+    var mecValues = System.Text.Json.JsonSerializer.Serialize(ViewBag.MecValues ?? Array.Empty<int>());
+
+    var abert = System.Text.Json.JsonSerializer.Serialize(ViewBag.Aberturas ?? Array.Empty<int>());
+    var concl = System.Text.Json.JsonSerializer.Serialize(ViewBag.Conclusoes ?? Array.Empty<int>());
+
+    var fatCliLabels = System.Text.Json.JsonSerializer.Serialize(ViewBag.FatClientesLabels ?? Array.Empty<string>());
+    var fatCliValues = System.Text.Json.JsonSerializer.Serialize(ViewBag.FatClientesValues ?? Array.Empty<decimal>());
 }
 
 <h1 class="mb-4">Painel</h1>
 
-<div class="row g-3">
-    <div class="col-md-3">
-        <div class="card border-0" style="background: rgba(13,110,253,.1);">
+<!-- ============================= -->
+<!--   CARDS SUPERIORES           -->
+<!-- ============================= -->
+
+<div class="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-5">
+    <div class="col">
+        <div class="card summary-card border-0 shadow-sm h-100" style="background: rgba(13,110,253,.08);">
             <div class="card-body">
                 <div class="text-muted small">OS em execução</div>
                 <div class="display-6">@ViewData["EmExecucao"]</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0" style="background: rgba(25,135,84,.1);">
+
+    <div class="col">
+        <div class="card summary-card border-0 shadow-sm h-100" style="background: rgba(25,135,84,.1);">
             <div class="card-body">
                 <div class="text-muted small">OS concluídas</div>
                 <div class="display-6">@ViewData["Concluidas"]</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0" style="background: rgba(255,193,7,.15);">
-            <div class="card-body">
+
+    <div class="col">
+        <div class="card summary-card border-0 shadow-sm h-100" style="background: rgba(255,193,7,.15);">
+            <div class="card-body position-relative">
                 <div class="text-muted small">Pendentes de aprovação</div>
                 <div class="display-6">@ViewData["PendentesAprovacao"]</div>
+                <a asp-controller="OrdensServico" asp-action="Index" asp-route-pendentes="true"
+                   class="stretched-link"></a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0" style="background: rgba(108,117,125,.15);">
+
+    <div class="col">
+        <div class="card summary-card border-0 shadow-sm h-100" style="background: rgba(108,117,125,.12);">
             <div class="card-body">
                 <div class="text-muted small">Faturamento do mês</div>
-                <div class="display-6">@String.Format(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), "{0:C}", ViewData["FaturamentoMes"])</div>
+                <div class="display-6">
+                    @String.Format(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), "{0:C}", ViewData["FaturamentoMes"])
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card summary-card border-0 shadow-sm h-100" style="background: rgba(111,66,193,.12);">
+            <div class="card-body">
+                <div class="text-muted small">Top cliente (mês)</div>
+                <div class="fw-bold text-truncate" title="@ViewData["TopClienteNome"]">
+                    @(ViewData["TopClienteNome"] ?? "-")
+                </div>
+                <div class="display-6 fs-2 mt-1">
+                    @String.Format(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), "{0:C}", ViewData["TopClienteValor"])
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="card mt-4">
-    <div class="card-body">
-        <h5 class="card-title">Faturamento (últimos meses)</h5>
-        <canvas id="chartFat" height="100"></canvas>
+<!-- ============================= -->
+<!--      GRÁFICOS                -->
+<!-- ============================= -->
+
+<style>
+    .summary-card {
+        border-radius: 16px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .chart-card {
+        border: 0;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .chart-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    }
+
+    .dashboard-grid .draggable-widget {
+        cursor: move;
+    }
+
+    .dashboard-grid .draggable-widget.dragging {
+        opacity: 0.6;
+    }
+
+    .card-fat {
+        min-height: 100%;
+    }
+
+    .chart-resizable {
+        position: relative;
+        width: 100%;
+        min-height: 220px;
+        height: var(--chart-height, 220px);
+        resize: vertical;
+        overflow: auto;
+        padding: .35rem .35rem .75rem;
+        border-radius: 0.75rem;
+        background: rgba(0, 0, 0, 0.01);
+    }
+
+    .chart-resizable canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .chart-resizable::after {
+        content: "";
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        width: 12px;
+        height: 12px;
+        border-right: 2px solid rgba(13, 110, 253, 0.4);
+        border-bottom: 2px solid rgba(13, 110, 253, 0.4);
+        border-radius: 0 0 0.5rem 0;
+        pointer-events: none;
+    }
+</style>
+
+<div id="dashboard-widgets" class="row g-4 mt-4 dashboard-grid">
+
+    <!-- FATURAMENTO HISTÓRICO -->
+    <div class="col-12 col-xl-8 col-lg-12 draggable-widget" data-widget-id="faturamento">
+        <div class="card chart-card card-fat h-100">
+            <div class="card-body">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-2">
+                    <h5 class="card-title mb-0">Faturamento (últimos meses)</h5>
+                </div>
+                <form method="get" class="row g-2 align-items-end">
+                    <div class="col-sm-3">
+                        <label class="form-label small">Mês</label>
+                        <select name="mes" class="form-select form-select-sm">
+                            @foreach (var m in (IEnumerable<dynamic>)ViewBag.Meses)
+                            {
+                                <option value="@m.Value" selected="@(ViewBag.SelectedMes==m.Value ? "selected" : null)">
+                                    @m.Text
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-sm-3">
+                        <label class="form-label small">Ano</label>
+                        <select name="ano" class="form-select form-select-sm">
+                            @foreach (var a in (IEnumerable<dynamic>)ViewBag.Anos)
+                            {
+                                <option value="@a.Value" selected="@(ViewBag.SelectedAno==a.Value ? "selected" : null)">
+                                    @a.Text
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-sm-3">
+                        <label class="form-label small">Mecânico</label>
+                        <select name="mecanicoId" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            @foreach (var u in (IEnumerable<Models.ApplicationUser>)ViewBag.Mecanicos)
+                            {
+                                <option value="@u.Id" selected="@(ViewBag.SelectedMecanico==u.Id ? "selected" : null)">
+                                    @(string.IsNullOrWhiteSpace(u.NomeCompleto) ? u.Email : u.NomeCompleto)
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-sm-3">
+                        <label class="form-label small">Cliente</label>
+                        <select name="clienteId" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            @foreach (var c in (IEnumerable<Models.Cliente>)ViewBag.Clientes)
+                            {
+                                <option value="@c.Id" selected="@(ViewBag.SelectedCliente==c.Id ? "selected" : null)">
+                                    @c.Nome
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-sm-3 col-md-auto">
+                        <button class="btn btn-sm btn-primary w-100">Aplicar</button>
+                    </div>
+                </form>
+
+                <div class="chart-resizable mt-3" data-chart-id="chartFat" data-default-height="320" data-min-height="240">
+                    <canvas id="chartFat"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- STATUS -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="status">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Status das OS</h5>
+                <div class="chart-resizable" data-chart-id="chartStatus" data-default-height="220">
+                    <canvas id="chartStatus"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- TOP SERVIÇOS -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="top-servicos">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Top 5 Serviços</h5>
+                <div class="chart-resizable" data-chart-id="chartTopServ" data-default-height="220">
+                    <canvas id="chartTopServ"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SERVIÇOS X PEÇAS (VALOR) -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="serv-pecas">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Serviços x Peças</h5>
+                <div class="chart-resizable" data-chart-id="chartServPecas" data-default-height="220">
+                    <canvas id="chartServPecas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OS POR MECÂNICO -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="mecanicos">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">OS por Mecânico</h5>
+                <div class="chart-resizable" data-chart-id="chartMec" data-default-height="220">
+                    <canvas id="chartMec"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABERTURA vs CONCLUSÃO -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="abert-conc">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Abertura x Conclusão</h5>
+                <div class="chart-resizable" data-chart-id="chartAbertConc" data-default-height="220">
+                    <canvas id="chartAbertConc"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FATURAMENTO POR CLIENTE -->
+    <div class="col-lg-6 col-xl-4 col-12 draggable-widget" data-widget-id="fat-cliente">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Faturamento por Cliente</h5>
+                <div class="chart-resizable" data-chart-id="chartFatCliente" data-default-height="220">
+                    <canvas id="chartFatCliente"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ============================= -->
+<!--   SCRIPTS                    -->
+<!-- ============================= -->
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- GRÁFICO PRINCIPAL -->
     <script>
-        const labels = @Html.Raw(labelsJson);
-        const dataVals = @Html.Raw(valuesJson);
-        const ctx = document.getElementById('chartFat');
-        if (ctx && labels.length) {
-            new Chart(ctx, {
-                type: 'line',
+        new Chart(document.getElementById('chartFat'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(labelsJson),
+                datasets: [{
+                    label: 'Faturamento',
+                    data: @Html.Raw(valuesJson),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13,110,253,.15)',
+                    fill: true,
+                    tension: .25,
+                    pointRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+
+    <!-- STATUS -->
+    <script>
+        new Chart(document.getElementById('chartStatus'), {
+            type: 'pie',
+            data: {
+                labels: @Html.Raw(statusLabels),
+                datasets: [{
+                    data: @Html.Raw(statusValues),
+                    backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+
+    <!-- TOP SERVIÇOS -->
+    <script>
+        new Chart(document.getElementById('chartTopServ'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(topServLabels),
+                datasets: [{
+                    data: @Html.Raw(topServValues),
+                    backgroundColor: '#0d6efd'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+
+    <!-- SERVIÇOS X PEÇAS -->
+    <script>
+        new Chart(document.getElementById('chartServPecas'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(labelsJson),
+                datasets: [
+                    {
+                        label: 'Serviços',
+                        data: @Html.Raw(servicosMensal),
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,.15)',
+                        tension: .3
+                    },
+                    {
+                        label: 'Peças',
+                        data: @Html.Raw(pecasMensal),
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255,193,7,.25)',
+                        tension: .3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+
+    <!-- OS por MECÂNICO -->
+    <script>
+        new Chart(document.getElementById('chartMec'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(mecLabels),
+                datasets: [{
+                    label: 'OS',
+                    data: @Html.Raw(mecValues),
+                    backgroundColor: '#198754'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+
+    <!-- ABERTURA X CONCLUSÃO -->
+    <script>
+        new Chart(document.getElementById('chartAbertConc'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(labelsJson),
+                datasets: [
+                    {
+                        label: 'Aberturas',
+                        data: @Html.Raw(abert),
+                        borderColor: '#0d6efd',
+                        tension: .3
+                    },
+                    {
+                        label: 'Conclusões',
+                        data: @Html.Raw(concl),
+                        borderColor: '#198754',
+                        tension: .3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+
+    <!-- FATURAMENTO POR CLIENTE -->
+    <script>
+        (function () {
+            const canvas = document.getElementById('chartFatCliente');
+            if (!canvas) return;
+            new Chart(canvas, {
+                type: 'bar',
                 data: {
-                    labels,
+                    labels: @Html.Raw(fatCliLabels),
                     datasets: [{
                         label: 'Faturamento',
-                        data: dataVals,
-                        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--ofc-primary') || '#0d6efd',
-                        backgroundColor: 'rgba(13,110,253,.15)',
-                        fill: true,
-                        tension: .25,
-                        pointRadius: 3
+                        data: @Html.Raw(fatCliValues),
+                        backgroundColor: '#6f42c1'
                     }]
                 },
                 options: {
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { ticks: { callback: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v) } }
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
                     }
                 }
             });
-        }
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const container = document.getElementById('dashboard-widgets');
+            if (!container) return;
+            const storageKey = 'dashboard-widgets-order';
+
+            function saveOrder() {
+                if (!window.localStorage) return;
+                const order = Array.from(container.querySelectorAll('.draggable-widget'))
+                    .map(el => el.dataset.widgetId);
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(order));
+                } catch { }
+            }
+
+            function applyOrder() {
+                if (!window.localStorage) return;
+                const saved = localStorage.getItem(storageKey);
+                if (!saved) return;
+                try {
+                    const ids = JSON.parse(saved);
+                    ids.forEach(id => {
+                        const el = container.querySelector(`.draggable-widget[data-widget-id="${id}"]`);
+                        if (el) container.appendChild(el);
+                    });
+                } catch { }
+            }
+
+            applyOrder();
+
+            container.querySelectorAll('.draggable-widget').forEach(el => {
+                el.setAttribute('draggable', 'true');
+            });
+
+            let dragging = null;
+
+            container.addEventListener('dragstart', (event) => {
+                const widget = event.target.closest('.draggable-widget');
+                if (!widget) return;
+                dragging = widget;
+                widget.classList.add('dragging');
+                event.dataTransfer.effectAllowed = 'move';
+            });
+
+            container.addEventListener('dragend', () => {
+                if (!dragging) return;
+                dragging.classList.remove('dragging');
+                dragging = null;
+                saveOrder();
+            });
+
+            container.addEventListener('dragover', (event) => {
+                if (!dragging) return;
+                event.preventDefault();
+                const target = event.target.closest('.draggable-widget');
+                if (!target || target === dragging) return;
+                const rect = target.getBoundingClientRect();
+                const before = (event.clientY - rect.top) < rect.height / 2;
+                container.insertBefore(dragging, before ? target : target.nextSibling);
+            });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const containers = document.querySelectorAll('.chart-resizable');
+            if (!containers.length) return;
+            const storageKey = 'dashboard-widget-sizes';
+            let savedSizes = {};
+
+            try {
+                savedSizes = JSON.parse(localStorage.getItem(storageKey) ?? '{}') ?? {};
+            } catch {
+                savedSizes = {};
+            }
+
+            containers.forEach(container => {
+                const chartId = container.dataset.chartId;
+                if (!chartId) return;
+                const defaultHeight = parseInt(container.dataset.defaultHeight || '220', 10);
+                const minHeight = parseInt(container.dataset.minHeight || defaultHeight || '200', 10);
+                const storedHeight = parseInt(savedSizes[chartId] || defaultHeight, 10);
+                container.style.minHeight = `${minHeight}px`;
+                container.style.height = `${storedHeight}px`;
+                container.style.setProperty('--chart-height', `${storedHeight}px`);
+            });
+
+            if (typeof ResizeObserver !== 'undefined') {
+                const observer = new ResizeObserver(entries => {
+                    entries.forEach(entry => {
+                        const target = entry.target;
+                        const chartId = target.dataset.chartId;
+                        if (!chartId) return;
+                        const height = Math.round(entry.contentRect.height);
+                        if (height <= 0) return;
+                        savedSizes[chartId] = height;
+                        try {
+                            localStorage.setItem(storageKey, JSON.stringify(savedSizes));
+                        } catch { }
+                    });
+                });
+                containers.forEach(container => observer.observe(container));
+            } else {
+                containers.forEach(container => {
+                    const save = () => {
+                        const chartId = container.dataset.chartId;
+                        if (!chartId) return;
+                        const height = Math.round(container.getBoundingClientRect().height);
+                        savedSizes[chartId] = height;
+                        try {
+                            localStorage.setItem(storageKey, JSON.stringify(savedSizes));
+                        } catch { }
+                    };
+                    container.addEventListener('mouseup', save);
+                    container.addEventListener('mouseleave', save);
+                });
+            }
+        })();
     </script>
 }

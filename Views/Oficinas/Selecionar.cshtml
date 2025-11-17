@@ -1,0 +1,170 @@
+@model Models.ViewModels.SelecionarOficinaViewModel
+@{
+    ViewData["Title"] = "Selecionar Oficina";
+    var gruposJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Grupos,
+        new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        });
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h2 class="mb-3 text-center">Selecione a oficina que deseja acessar</h2>
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Error"]</div>
+                    }
+
+@if (Model.Grupos.Count == 0)
+{
+    <div class="alert alert-warning">
+        Nenhuma oficina foi atribuída ao seu usuário. Entre em contato com o administrador para obter acesso.
+    </div>
+}
+else
+{
+    <div class="mb-4">
+        <h5 class="mb-2">Situação dos grupos</h5>
+        <div class="row g-3">
+            @foreach (var grupoResumo in Model.Grupos)
+            {
+                <div class="col-md-6">
+                    <div class="border rounded p-3 h-100 bg-light-subtle">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>@grupoResumo.GrupoNome</strong>
+                            <span class="badge bg-info text-dark">@grupoResumo.Plano</span>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            @if (grupoResumo.OficinasPermitidas.HasValue)
+                            {
+                                <span>Oficinas: @grupoResumo.OficinasUsadas / @grupoResumo.OficinasPermitidas</span>
+                            }
+                            else
+                            {
+                                <span>Oficinas: @grupoResumo.OficinasUsadas (ilimitado)</span>
+                            }
+                        </div>
+                        @if (!grupoResumo.PodeCriarNovas)
+                        {
+                            <div class="small text-danger mt-2">Limite máximo atingido para este grupo.</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <form method="post" asp-action="Selecionar">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div class="mb-3">
+            <label class="form-label">Grupo</label>
+            <select asp-for="GrupoSelecionado" class="form-select" id="grupoSelect">
+                <option value="">Selecione um grupo</option>
+                @foreach (var grupo in Model.Grupos)
+                {
+                    <option value="@grupo.GrupoId">@grupo.GrupoNome (@grupo.Plano)</option>
+                }
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Oficina</label>
+            <select asp-for="OficinaSelecionada" class="form-select" id="oficinaSelect">
+                <option value="">Selecione uma oficina</option>
+            </select>
+        </div>
+        <div id="grupoInfo" class="alert alert-secondary d-none">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span id="grupoInfoNome" class="fw-semibold"></span>
+                    <span class="badge bg-info text-dark ms-2" id="grupoInfoPlano"></span>
+                </div>
+                <div id="grupoInfoLimite" class="fw-semibold"></div>
+            </div>
+            <div id="grupoInfoAviso" class="small mt-2 text-danger d-none"></div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Acessar oficina</button>
+            <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-secondary">Sair</a>
+        </div>
+    </form>
+}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        (function () {
+            const grupos = @Html.Raw(gruposJson);
+            const grupoSelect = document.getElementById('grupoSelect');
+            const oficinaSelect = document.getElementById('oficinaSelect');
+            const grupoInfo = document.getElementById('grupoInfo');
+            const grupoInfoNome = document.getElementById('grupoInfoNome');
+            const grupoInfoPlano = document.getElementById('grupoInfoPlano');
+            const grupoInfoLimite = document.getElementById('grupoInfoLimite');
+            const grupoInfoAviso = document.getElementById('grupoInfoAviso');
+
+            function renderGrupoInfo(grupo) {
+                if (!grupoInfo) return;
+                if (!grupo) {
+                    grupoInfo.classList.add('d-none');
+                    return;
+                }
+
+                grupoInfoNome.textContent = grupo.grupoNome ?? '';
+                grupoInfoPlano.textContent = grupo.plano ?? '';
+
+                const limite = grupo.oficinasPermitidas;
+                const temLimite = typeof limite === 'number' && !Number.isNaN(limite);
+                if (temLimite) {
+                    grupoInfoLimite.textContent = `Oficinas: ${grupo.oficinasUsadas}/${limite}`;
+                } else {
+                    grupoInfoLimite.textContent = `Oficinas: ${grupo.oficinasUsadas} (ilimitado)`;
+                }
+
+                if (!grupo.podeCriarNovas && temLimite) {
+                    grupoInfoAviso.textContent = 'Limite máximo atingido para este grupo.';
+                    grupoInfoAviso.classList.remove('d-none');
+                } else {
+                    grupoInfoAviso.textContent = '';
+                    grupoInfoAviso.classList.add('d-none');
+                }
+
+                grupoInfo.classList.remove('d-none');
+            }
+
+            function atualizarOficinas() {
+                const grupoId = parseInt(grupoSelect.value);
+                oficinaSelect.innerHTML = '<option value="">Selecione uma oficina</option>';
+                if (!grupoId) {
+                    renderGrupoInfo(null);
+                    return;
+                }
+                const grupo = grupos.find(g => g.grupoId === grupoId);
+                if (!grupo || !grupo.oficinas) {
+                    renderGrupoInfo(null);
+                    return;
+                }
+
+                grupo.oficinas.forEach(oficina => {
+                    const opt = document.createElement('option');
+                    opt.value = oficina.oficinaId;
+                    opt.textContent = oficina.nome;
+                    oficinaSelect.appendChild(opt);
+                });
+
+                renderGrupoInfo(grupo);
+            }
+
+            grupoSelect?.addEventListener('change', atualizarOficinas);
+            atualizarOficinas();
+        })();
+    </script>
+}

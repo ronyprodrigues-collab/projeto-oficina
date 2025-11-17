@@ -1,10 +1,10 @@
 @model Models.Cliente
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Detalhes do Cliente";
 }
 
-<h1>Details</h1>
+<h1>Detalhes do Cliente</h1>
 
 <div>
     <h4>Cliente</h4>
@@ -40,9 +40,66 @@
         <dd class = "col-sm-10">
             @Html.DisplayFor(model => model.Endereco)
         </dd>
+        @if (!string.IsNullOrWhiteSpace(Model?.Numero))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Numero)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Numero)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Bairro))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Bairro)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Bairro)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Cidade))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Cidade)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Cidade)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Estado))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Estado)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Estado)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.CEP))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.CEP)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.CEP)</dd>
+        }
+        @if (Model?.DataNascimento != null)
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.DataNascimento)</dt>
+            <dd class="col-sm-10">@Model.DataNascimento?.ToString("dd/MM/yyyy")</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.TipoCliente))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.TipoCliente)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.TipoCliente)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.CNPJ))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.CNPJ)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.CNPJ)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Responsavel))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Responsavel)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Responsavel)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Responsavel))
+        {
+            <dt class="col-sm-2">Responsável pelo Cadastro</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Responsavel)</dd>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model?.Observacoes))
+        {
+            <dt class="col-sm-2">@Html.DisplayNameFor(m => m.Observacoes)</dt>
+            <dd class="col-sm-10">@Html.DisplayFor(m => m.Observacoes)</dd>
+        }
     </dl>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
+<div class="mt-3">
+    <div class="btn-group btn-group-sm" role="group">
+        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model?.Id">Editar</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Voltar</a>
+    </div>
+ </div>

@@ -1,0 +1,60 @@
+@model Models.GrupoOficina
+@{
+    ViewData["Title"] = "Detalhes do Grupo";
+}
+
+<h1>@Model.Nome</h1>
+@{
+    var limiteGrupo = Model.Plano switch
+    {
+        Models.PlanoConta.Basico => 1,
+        Models.PlanoConta.Pro => 2,
+        Models.PlanoConta.Plus => 0,
+        _ => 0
+    };
+}
+<p class="text-muted">
+    Plano: @Model.Plano
+    @if (limiteGrupo > 0)
+    {
+        <span>| Oficinas: @Model.Oficinas.Count / @limiteGrupo</span>
+    }
+</p>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Oficinas (@Model.Oficinas.Count)</h4>
+    <a class="btn btn-sm btn-success" asp-action="CriarOficina" asp-route-grupoId="@Model.Id">Nova Oficina</a>
+</div>
+
+@if (Model.Oficinas.Count == 0)
+{
+    <div class="alert alert-info">Nenhuma oficina cadastrada neste grupo.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Plano</th>
+                <th>Administrador</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var oficina in Model.Oficinas)
+        {
+            <tr>
+                <td>@oficina.Nome</td>
+                <td>@oficina.Plano</td>
+                <td>@(oficina.AdminProprietario != null ? oficina.AdminProprietario.NomeCompleto : "-")</td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary" asp-action="GerenciarUsuarios" asp-route-oficinaId="@oficina.Id">Usuários</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+<a asp-action="Index" class="btn btn-secondary">Voltar</a>

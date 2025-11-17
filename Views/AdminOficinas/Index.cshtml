@@ -1,0 +1,50 @@
+@model IEnumerable<Models.Oficina>
+@{
+    ViewData["Title"] = "Minhas Oficinas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0">Minhas Oficinas</h1>
+        <p class="text-muted mb-0">Gerencie os usuários das oficinas que você administra ou participa.</p>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        Nenhuma oficina foi atribuída ao seu usuário. Solicite acesso ao suporte ou ao diretor responsável.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Grupo</th>
+                    <th>Plano</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var oficina in Model)
+            {
+                <tr>
+                    <td>@oficina.Nome</td>
+                    <td>@oficina.Grupo?.Nome</td>
+                    <td>@oficina.Plano</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-action="GerenciarUsuarios"
+                           asp-route-oficinaId="@oficina.Id">
+                            Gerenciar usuários
+                        </a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,134 +1,193 @@
-@model Models.Configuracoes
+@model Models.ViewModels.SuporteConfiguracaoViewModel
 @{
     ViewData["Title"] = "Configurações da Oficina";
+    var oficina = Model.Oficina;
+    var coresPreviewPrimaria = oficina?.CorPrimaria ?? Model.Defaults?.CorPrimaria ?? "#0d6efd";
+    var coresPreviewSecundaria = oficina?.CorSecundaria ?? Model.Defaults?.CorSecundaria ?? "#6c757d";
+    string PlanoLabel(Models.PlanoConta plano) => plano switch
+    {
+        Models.PlanoConta.Basico => "Plano Básico",
+        Models.PlanoConta.Pro => "Plano Pro",
+        Models.PlanoConta.Plus => "Plano Plus",
+        _ => plano.ToString()
+    };
 }
 
 <h1 class="mb-4">Configurações da Oficina</h1>
 
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Identidade visual</div>
-            <div class="card-body">
-                <div class="mb-3 d-flex align-items-center gap-3">
-                    <img src="@Model.LogoPath" alt="Logo" style="height:64px" onerror="this.style.display='none'" />
-                    <div>
-                        <div><strong>Nome da oficina:</strong> @Model.NomeOficina</div>
-                        <div><strong>Logo atual:</strong> @(Model.LogoPath ?? "(não definido)")</div>
-                    </div>
-                </div>
-                <form asp-action="AlterarLogo" asp-controller="Suporte" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">Enviar nova logo</label>
-                        <input type="file" name="logo" class="form-control" accept="image/*" />
-                    </div>
-                    <button class="btn btn-primary" type="submit">Salvar logo</button>
-                    @Html.AntiForgeryToken()
-                </form>
-            </div>
-        </div>
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label class="form-label">Grupo</label>
+        <select name="grupoId" class="form-select" onchange="this.form.submit()">
+            @foreach (var grupo in Model.Grupos)
+            {
+                <option value="@grupo.Id" selected="@(grupo.Id == Model.GrupoSelecionadoId ? "selected" : null)">
+                    @grupo.Nome (@grupo.Plano)
+                </option>
+            }
+        </select>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">Cores do tema</div>
-            <div class="card-body">
-                <form asp-action="AlterarCores" asp-controller="Suporte" method="post">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Cor Primária</label>
-                            <input type="color" name="corPrimaria" class="form-control form-control-color" value="@Model.CorPrimaria" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Cor Secundária</label>
-                            <input type="color" name="corSecundaria" class="form-control form-control-color" value="@Model.CorSecundaria" />
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Nome da Oficina</label>
-                            <input type="text" name="nomeOficina" class="form-control" value="@Model.NomeOficina" />
-                        </div>
+    <div class="col-md-4">
+        <label class="form-label">Oficina</label>
+        <select name="oficinaId" class="form-select" onchange="this.form.submit()">
+            @if (!Model.Oficinas.Any())
+            {
+                <option value="">Nenhuma oficina disponível</option>
+            }
+            else
+            {
+                foreach (var of in Model.Oficinas)
+                {
+                    <option value="@of.Id" selected="@(of.Id == Model.OficinaSelecionadaId ? "selected" : null)">@of.Nome</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Carregar</button>
+    </div>
+</form>
+
+@if (TempData["FixMsg"] != null)
+{
+    <div class="alert alert-info">@TempData["FixMsg"]</div>
+}
+
+@if (oficina == null)
+{
+    <div class="alert alert-warning">Selecione um grupo e uma oficina para editar as configurações.</div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Identidade visual</div>
+                <div class="card-body">
+                    <div class="mb-3 d-flex align-items-center gap-3">
+                        @if (!string.IsNullOrWhiteSpace(oficina.LogoPath))
+                        {
+                            <img src="@oficina.LogoPath" style="height:64px" alt="Logo" />
+                        }
+                        else
+                        {
+                            <div class="text-muted">Sem logo definida</div>
+                        }
                     </div>
-                    <div class="mt-3">
-                        <button class="btn btn-success" type="submit">Salvar cores</button>
+                    <form asp-action="AlterarLogo" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
-                    </div>
-                </form>
+                        <input type="hidden" name="grupoId" value="@Model.GrupoSelecionadoId" />
+                        <input type="hidden" name="oficinaId" value="@Model.OficinaSelecionadaId" />
+                        <div class="mb-3">
+                            <label class="form-label">Enviar nova logo</label>
+                            <input type="file" name="logo" class="form-control" accept="image/*" />
+                        </div>
+                        <button class="btn btn-primary" type="submit">Salvar logo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Cores do tema</div>
+                <div class="card-body">
+                    <form asp-action="AlterarCores" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="grupoId" value="@Model.GrupoSelecionadoId" />
+                        <input type="hidden" name="oficinaId" value="@Model.OficinaSelecionadaId" />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Cor Primária</label>
+                                <input type="color" name="corPrimaria" class="form-control form-control-color" value="@oficina.CorPrimaria" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Cor Secundária</label>
+                                <input type="color" name="corSecundaria" class="form-control form-control-color" value="@oficina.CorSecundaria" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Nome da Oficina</label>
+                                <input type="text" name="nomeOficina" class="form-control" value="@oficina.Nome" />
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-success" type="submit">Salvar cores</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Plano da oficina</span>
+            <span class="badge bg-primary">@PlanoLabel(oficina.Plano)</span>
+        </div>
+        <div class="card-body">
+            <form asp-action="AlterarPlano" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="grupoId" value="@Model.GrupoSelecionadoId" />
+                <input type="hidden" name="oficinaId" value="@Model.OficinaSelecionadaId" />
+                <div class="row g-3">
+                    @foreach (var plano in (Models.PlanoConta[])System.Enum.GetValues(typeof(Models.PlanoConta)))
+                    {
+                        <div class="col-md-4">
+                            <div class="form-check border rounded p-3 @(oficina.Plano == plano ? "border-primary" : "border-secondary-subtle")">
+                                <input class="form-check-input" type="radio" name="plano" value="@plano" id="plano_@plano" @(oficina.Plano == plano ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="plano_@plano">@PlanoLabel(plano)</label>
+                                <ul class="small text-muted mt-2 mb-0">
+                                    @if (plano == Models.PlanoConta.Basico)
+                                    {
+                                        <li>Cadastro de clientes/veículos</li>
+                                        <li>OS com peças simples</li>
+                                    }
+                                    else if (plano == Models.PlanoConta.Pro)
+                                    {
+                                        <li>Controle de estoque completo</li>
+                                        <li>Movimentações FIFO</li>
+                                    }
+                                    else
+                                    {
+                                        <li>Financeiro avançado (em desenvolvimento)</li>
+                                        <li>Relatórios multi-oficina</li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">Salvar plano</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">Pré-visualização</div>
+        <div class="card-body">
+            <div class="p-4 mb-3 rounded text-white" style="background:@coresPreviewPrimaria;">
+                Prévia - @oficina.Nome
+            </div>
+            <div class="d-flex gap-2 mb-3">
+                <button class="btn" style="background:@coresPreviewPrimaria;color:#fff;">Primário</button>
+                <button class="btn" style="background:@coresPreviewSecundaria;color:#fff;">Secundário</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(oficina.LogoPath))
+            {
+                <img src="@oficina.LogoPath" alt="Prévia da logo" style="height:48px" />
+            }
+        </div>
+    </div>
+}
 
 <div class="card mt-4">
-    <div class="card-header">Pré-visualização de tema</div>
+    <div class="card-header">Manutenção</div>
     <div class="card-body">
-        <div class="mb-3 small text-muted">Ajuste as cores acima para ver a prévia ao vivo. A página aplica as novas cores temporariamente até você salvar.</div>
-        <nav class="navbar mb-3" style="background-color: var(--ofc-navbar-bg); color: #fff;">
-            <div class="container-fluid">
-                <span class="navbar-brand">Prévia - @Model.NomeOficina</span>
-                <span class="badge" style="background-color: var(--ofc-primary);">Primária</span>
-            </div>
-        </nav>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <div class="p-3 border rounded" style="border-color: var(--ofc-border); background: rgba(13,110,253,.05)">
-                    <div class="text-muted small">Botões</div>
-                    <button type="button" class="btn btn-sm" style="background: var(--ofc-primary); color: #fff;">Primário</button>
-                    <button type="button" class="btn btn-sm" style="background: var(--ofc-secondary); color: #fff;">Secundário</button>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 border rounded" style="border-color: var(--ofc-border);">
-                    <div class="text-muted small">Cards</div>
-                    <div class="card border-0" style="background: rgba(25,135,84,.1);">
-                        <div class="card-body">
-                            <div class="small text-muted">Exemplo</div>
-                            <div class="fw-bold">Cores da Oficina</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 border rounded" style="border-color: var(--ofc-border);">
-                    <div class="text-muted small mb-2">Logo</div>
-                    <img id="logoPreview" src="@Model.LogoPath" alt="Prévia da logo" style="height:64px" onerror="this.style.display='none'" />
-                </div>
-            </div>
-        </div>
+        <p class="text-muted">Correção para dados salvos 100x maiores (teste). Executa divisão por 100 em valores elegíveis.</p>
+        <form asp-action="CorrigirValoresTeste" method="post">
+            @Html.AntiForgeryToken()
+            <button class="btn btn-warning" type="submit">Corrigir valores (+100 = ×100)</button>
+        </form>
     </div>
 </div>
-
-@section Scripts {
-<script>
-    (function(){
-        const root = document.documentElement;
-        const primaryInput = document.querySelector('input[name="corPrimaria"]');
-        const secondaryInput = document.querySelector('input[name="corSecundaria"]');
-        const nameInput = document.querySelector('input[name="nomeOficina"]');
-        const logoInput = document.querySelector('input[type="file"][name="logo"]');
-        const logoImg = document.getElementById('logoPreview');
-
-        function applyPreview(){
-            if (primaryInput && primaryInput.value) {
-                root.style.setProperty('--ofc-primary', primaryInput.value);
-                root.style.setProperty('--ofc-navbar-bg', primaryInput.value);
-            }
-            if (secondaryInput && secondaryInput.value) {
-                root.style.setProperty('--ofc-secondary', secondaryInput.value);
-            }
-        }
-
-        primaryInput?.addEventListener('input', applyPreview);
-        secondaryInput?.addEventListener('input', applyPreview);
-        applyPreview();
-
-        if (logoInput && window.FileReader) {
-            logoInput.addEventListener('change', function(){
-                const file = this.files && this.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = e => { if (logoImg) { logoImg.style.display=''; logoImg.src = e.target.result; } };
-                reader.readAsDataURL(file);
-            });
-        }
-    })();
-</script>
-}

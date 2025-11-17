@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace projetos.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialRestrict : Migration
+    public partial class InitialSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -62,7 +62,17 @@ namespace projetos.Migrations
                     CPF_CNPJ = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Telefone = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Endereco = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Endereco = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Numero = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Bairro = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Cidade = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Estado = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CEP = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DataNascimento = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Observacoes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TipoCliente = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CNPJ = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Responsavel = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -83,6 +93,24 @@ namespace projetos.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Configuracoes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PecaEstoques",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Nome = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
+                    Codigo = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: true),
+                    UnidadeMedida = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    EstoqueMinimo = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    SaldoAtual = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    PrecoVenda = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PecaEstoques", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -215,6 +243,39 @@ namespace projetos.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MovimentacoesEstoque",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PecaEstoqueId = table.Column<int>(type: "int", nullable: false),
+                    DataMovimentacao = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Tipo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Quantidade = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    ValorUnitario = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    QuantidadeRestante = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    Observacao = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    OrdemServicoId = table.Column<int>(type: "int", nullable: true),
+                    MovimentacaoEntradaReferenciaId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MovimentacoesEstoque", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MovimentacoesEstoque_MovimentacoesEstoque_MovimentacaoEntradaReferenciaId",
+                        column: x => x.MovimentacaoEntradaReferenciaId,
+                        principalTable: "MovimentacoesEstoque",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_MovimentacoesEstoque_PecaEstoques_PecaEstoqueId",
+                        column: x => x.PecaEstoqueId,
+                        principalTable: "PecaEstoques",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "OrdensServico",
                 columns: table => new
                 {
@@ -262,6 +323,7 @@ namespace projetos.Migrations
                     Nome = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ValorUnitario = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Quantidade = table.Column<int>(type: "int", nullable: false),
+                    Concluido = table.Column<bool>(type: "bit", nullable: false),
                     OrdemServicoId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -283,6 +345,7 @@ namespace projetos.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Descricao = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Valor = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Concluido = table.Column<bool>(type: "bit", nullable: false),
                     OrdemServicoId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -334,6 +397,16 @@ namespace projetos.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MovimentacoesEstoque_MovimentacaoEntradaReferenciaId",
+                table: "MovimentacoesEstoque",
+                column: "MovimentacaoEntradaReferenciaId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MovimentacoesEstoque_PecaEstoqueId",
+                table: "MovimentacoesEstoque",
+                column: "PecaEstoqueId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrdensServico_ClienteId",
@@ -388,6 +461,9 @@ namespace projetos.Migrations
                 name: "Configuracoes");
 
             migrationBuilder.DropTable(
+                name: "MovimentacoesEstoque");
+
+            migrationBuilder.DropTable(
                 name: "PecaItem");
 
             migrationBuilder.DropTable(
@@ -395,6 +471,9 @@ namespace projetos.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "PecaEstoques");
 
             migrationBuilder.DropTable(
                 name: "OrdensServico");

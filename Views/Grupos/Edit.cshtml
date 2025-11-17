@@ -1,0 +1,49 @@
+@model Models.GrupoOficina
+@{
+    ViewData["Title"] = "Editar Grupo";
+    var diretores = ViewBag.Diretores as SelectList ?? new SelectList(Enumerable.Empty<SelectListItem>());
+}
+
+<h1 class="mb-3">Editar Grupo</h1>
+
+<form asp-action="Edit" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <div class="mb-3">
+        <label asp-for="Nome" class="form-label"></label>
+        <input asp-for="Nome" class="form-control" />
+        <span asp-validation-for="Nome" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Descricao" class="form-label"></label>
+        <textarea asp-for="Descricao" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Descricao" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Diretor</label>
+        <select asp-for="DiretorId" class="form-select" asp-items="diretores"></select>
+        <span asp-validation-for="DiretorId" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Plano</label>
+        <select asp-for="Plano" class="form-select" asp-items="Html.GetEnumSelectList<Models.PlanoConta>()"></select>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="CorPrimaria" class="form-label">Cor primária</label>
+            <input asp-for="CorPrimaria" type="color" class="form-control form-control-color" />
+            <span asp-validation-for="CorPrimaria" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="CorSecundaria" class="form-label">Cor secundária</label>
+            <input asp-for="CorSecundaria" type="color" class="form-control form-control-color" />
+            <span asp-validation-for="CorSecundaria" class="text-danger"></span>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-success">Salvar</button>
+    <a asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

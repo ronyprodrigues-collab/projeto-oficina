@@ -31,6 +31,7 @@ namespace Models.ViewModels
 
     public class PecaItemInput
     {
+        public int? PecaEstoqueId { get; set; }
         [Required]
         public string Nome { get; set; } = string.Empty;
         [Range(0, double.MaxValue)]

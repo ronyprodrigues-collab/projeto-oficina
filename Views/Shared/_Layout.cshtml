@@ -1,18 +1,49 @@
 @using Microsoft.AspNetCore.Identity
+@using Models
 @inject UserManager<Models.ApplicationUser> UserManager
 @inject SignInManager<Models.ApplicationUser> SignInManager
 @inject Services.IConfiguracoesService ConfigService
+@inject Services.IOficinaContext OficinaContext
 
 @{
     var appName = "Oficina";
     var currentUser = SignInManager.IsSignedIn(User) ? await UserManager.GetUserAsync(User) : null;
     var displayName = currentUser?.NomeCompleto ?? User?.Identity?.Name ?? "Convidado";
+    bool isAuthenticated = User?.Identity?.IsAuthenticated == true && SignInManager.IsSignedIn(User ?? new System.Security.Claims.ClaimsPrincipal());
     bool isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor");
     bool isMecanico = User.IsInRole("Mecanico");
     bool isSuporte = User.IsInRole("SuporteTecnico");
+    bool isDiretor = User.IsInRole("Diretor");
+    var controllerName = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    bool isEstoqueSection = new[] { "Estoque", "MovimentacaoEstoque", "Peca" }
+        .Contains(controllerName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+    bool isPainelPage = string.Equals(controllerName, "Painel", System.StringComparison.OrdinalIgnoreCase);
 
     var cfg = await ConfigService.GetAsync();
     if (!string.IsNullOrWhiteSpace(cfg?.NomeOficina)) { appName = cfg.NomeOficina; }
+    string PlanoLabel(PlanoConta plano) => plano switch
+    {
+        PlanoConta.Basico => "Básico",
+        PlanoConta.Pro => "Pro",
+        PlanoConta.Plus => "Plus",
+        _ => plano.ToString()
+    };
+    Models.Oficina? oficinaAtual = null;
+    if (isAuthenticated)
+    {
+        oficinaAtual = await OficinaContext.GetOficinaAtualAsync();
+    }
+    var planoAtual = oficinaAtual?.Plano ?? cfg?.PlanoAtual ?? PlanoConta.Basico;
+    bool planoTemEstoque = planoAtual >= PlanoConta.Pro;
+    bool planoTemFinanceiro = planoAtual >= PlanoConta.Plus;
+    var nomeOficinaAtual = oficinaAtual?.Nome ?? "Nenhuma oficina selecionada";
+    var grupoAtual = oficinaAtual?.Grupo?.Nome;
+    string corPrimariaAtual = !string.IsNullOrWhiteSpace(oficinaAtual?.Grupo?.CorPrimaria)
+        ? oficinaAtual!.Grupo!.CorPrimaria
+        : (!string.IsNullOrWhiteSpace(cfg?.CorPrimaria) ? cfg!.CorPrimaria! : "#0d6efd");
+    string corSecundariaAtual = !string.IsNullOrWhiteSpace(oficinaAtual?.Grupo?.CorSecundaria)
+        ? oficinaAtual!.Grupo!.CorSecundaria
+        : (!string.IsNullOrWhiteSpace(cfg?.CorSecundaria) ? cfg!.CorSecundaria! : "#6c757d");
 }
 
 <!DOCTYPE html>
@@ -26,6 +57,7 @@
         :root {
             --ofc-primary: #0d6efd;
             --ofc-secondary: #6c757d;
+            --ofc-primary-rgb: 13,110,253; /* fallback for alpha tints */
             --ofc-accent: #198754;
             --ofc-navbar-bg: #1f2937;
             --ofc-sidebar-bg: #111827;
@@ -34,6 +66,11 @@
             --ofc-text: #f8fafc;
             --ofc-text-muted: #cbd5e1;
             --ofc-border: #233047;
+            /* Bootstrap mappings (globais) */
+            --bs-primary: var(--ofc-primary);
+            --bs-secondary: var(--ofc-secondary);
+            --bs-link-color: var(--ofc-primary);
+            --bs-link-hover-color: var(--ofc-primary);
         }
         [data-theme="light"] {
             --ofc-navbar-bg: #0d6efd;
@@ -45,6 +82,31 @@
             --ofc-border: #e5e7eb;
         }
         body { background-color: var(--ofc-bg); color: var(--ofc-text); }
+        /* Global font size adjustment: all pages except Painel */
+        body.page-common { font-size: 0.90rem; }
+        body.page-common h1 { font-size: calc(2.5rem * .88); }
+        body.page-common h2 { font-size: calc(2rem * .88); }
+        body.page-common h3 { font-size: calc(1.75rem * .88); }
+        body.page-common .display-1,
+        body.page-common .display-2,
+        body.page-common .display-3,
+        body.page-common .display-4,
+        body.page-common .display-5,
+        body.page-common .display-6 { font-size: 0.88em; }
+        body.page-common .btn { font-size: .85rem; }
+        body.page-common .table, body.page-common table.dataTable { font-size: .90rem; }
+        body.page-common table.dataTable tbody td, body.page-common .table tbody td { padding: .45rem .5rem; }
+        body.page-common .form-control, body.page-common .form-select { font-size: .9rem; }
+        /* DataTables UI */
+        body.page-common .dt-container,
+        body.page-common .dt-container label,
+        body.page-common .dt-container .dt-input,
+        body.page-common .dt-container .dt-search input,
+        body.page-common .dt-container .dt-length select,
+        body.page-common .dt-container .dt-paging .dt-paging-button { font-size: .9rem; }
+        body.page-common .dt-buttons .btn { font-size: .8rem; padding: .25rem .5rem; }
+        /* Center page titles (H1) by default */
+        .content h1 { text-align: center; }
         .navbar { background-color: var(--ofc-navbar-bg) !important; }
         .navbar .navbar-brand, .navbar .nav-link, .navbar .navbar-text { color: #fff; }
         .layout { display: flex; min-height: calc(100vh - 56px); }
@@ -57,6 +119,12 @@
         .sidebar.collapsed { margin-left: -260px; }
         .sidebar .nav-link { color: var(--ofc-text-muted); }
         .sidebar .nav-link.active, .sidebar .nav-link:hover { background: rgba(13,110,253,.1); color: var(--ofc-primary); }
+        .sidebar .nav .collapse .nav-link { padding-left: 2rem; font-size: .9rem; }
+        .sidebar .nav .collapse .nav-link::before {
+            content: "•";
+            margin-right: .35rem;
+            color: var(--ofc-primary);
+        }
         .content { flex: 1; background-color: var(--ofc-surface); }
         .content .container-fluid { padding: 1rem; }
         .brand-logo { width: 28px; height: 28px; object-fit: contain; }
@@ -77,10 +145,18 @@
             --bs-secondary: var(--ofc-secondary);
         }
 
+        /* Links e elementos com realce */
+        a, .nav-link { color: var(--ofc-primary); }
+        a:hover, .nav-link:hover { filter: brightness(1.1); }
+
         /* Components contrast */
         [data-theme="dark"] .card, [data-theme="dark"] .modal-content { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
         [data-theme="dark"] .table { color: var(--ofc-text); }
         [data-theme="dark"] .table th, [data-theme="dark"] .table td { border-color: var(--ofc-border); }
+        /* Center column headers by default */
+        table.table thead th, table.dataTable thead th, .dataTables_scrollHead th { text-align: center !important; vertical-align: middle !important; }
+        /* But keep filter-row cells left-aligned for inputs/selects */
+        thead .dt-filters th { text-align: left !important; }
         /* Enforce table text contrast */
         [data-theme="dark"] .table, 
         [data-theme="dark"] .table td,
@@ -112,9 +188,10 @@
         }
         [data-theme="dark"] .form-control::placeholder { color: var(--ofc-text-muted); }
         [data-theme="dark"] .input-group-text { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
-        [data-theme="dark"] .btn-primary { background-color: var(--ofc-primary); border-color: var(--ofc-primary); }
-        [data-theme="dark"] .btn-outline-primary { color: var(--ofc-primary); border-color: var(--ofc-primary); }
-        [data-theme="dark"] .btn-outline-primary:hover { background-color: var(--ofc-primary); color: #fff; }
+        /* Botões primários respeitam a cor em qualquer tema */
+        .btn-primary { background-color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        .btn-outline-primary { color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        .btn-outline-primary:hover { background-color: var(--ofc-primary); color: #fff; }
         [data-theme="dark"] .btn-secondary { background-color: var(--ofc-secondary); border-color: var(--ofc-secondary); }
         [data-theme="dark"] .page-link { background-color: var(--ofc-surface); color: var(--bs-link-color); border-color: var(--ofc-border); }
         [data-theme="dark"] .page-link:hover { background-color: rgba(255,255,255,.06); }
@@ -123,8 +200,11 @@
         [data-theme="dark"] .dt-container .dt-length label, [data-theme="dark"] .dt-container .dt-search label { color: var(--ofc-text); }
         [data-theme="dark"] .dt-container .dt-paging .dt-paging-button { background-color: var(--ofc-surface); color: var(--ofc-text); border-color: var(--ofc-border); }
         [data-theme="dark"] .dt-container .dt-paging .dt-paging-button.current { background-color: var(--ofc-primary); color: #fff; border-color: var(--ofc-primary); }
-        [data-theme="dark"] table.dataTable>thead>tr>th { color: var(--ofc-text) !important; border-color: var(--ofc-border) !important; background-color: #152238 !important; }
-        [data-theme="dark"] thead .dt-filters th { background-color: #12213a !important; }
+        /* Cabeçalhos das tabelas usam a cor do tema (ambos os temas) */
+        table.dataTable>thead>tr>th, table.table thead th { background-color: rgba(var(--ofc-primary-rgb), .08) !important; }
+        [data-theme="dark"] table.dataTable>thead>tr>th { color: var(--ofc-text) !important; border-color: var(--ofc-border) !important; background-color: rgba(var(--ofc-primary-rgb), .15) !important; }
+        thead .dt-filters th { background-color: rgba(var(--ofc-primary-rgb), .05) !important; }
+        [data-theme="dark"] thead .dt-filters th { background-color: rgba(var(--ofc-primary-rgb), .08) !important; }
         [data-theme="dark"] thead .dt-filters input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
         [data-theme="dark"] thead .dt-filters select { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
         [data-theme="dark"] table.dataTable tbody tr { background-color: transparent !important; }
@@ -133,33 +213,86 @@
         /* DataTables 1.x wrappers */
         [data-theme="dark"] .dataTables_length select,
         [data-theme="dark"] .dataTables_filter input { background-color: var(--ofc-surface); color: var(--ofc-text); border: 1px solid var(--ofc-border); }
-        [data-theme="dark"] .dt-buttons .btn { background-color: var(--ofc-primary); border-color: var(--ofc-primary); color: #fff; }
-        [data-theme="dark"] .dt-buttons .btn:hover { filter: brightness(1.1); }
+        .dt-buttons .btn { background-color: var(--ofc-primary); border-color: var(--ofc-primary); color: #fff; }
+        .dt-buttons .btn:hover { filter: brightness(1.1); }
+
+        /* Paginação e inputs ativos com a cor do tema */
+        .page-item.active .page-link { background-color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        .form-check-input:checked { background-color: var(--ofc-primary); border-color: var(--ofc-primary); }
+        .form-range::-webkit-slider-thumb { background-color: var(--ofc-primary); }
     </style>
     @* Override com cores do banco *@
     <style>
         :root {
-            --ofc-primary: @(string.IsNullOrWhiteSpace(cfg?.CorPrimaria) ? "#0d6efd" : cfg.CorPrimaria);
-            --ofc-secondary: @(string.IsNullOrWhiteSpace(cfg?.CorSecundaria) ? "#6c757d" : cfg.CorSecundaria);
+            --ofc-primary: @corPrimariaAtual;
+            --ofc-secondary: @corSecundariaAtual;
+            --ofc-navbar-bg: @corPrimariaAtual;
         }
     </style>
+
+    <script>
+        // Atualiza --ofc-primary-rgb com base em --ofc-primary para suportar transparências
+        (function(){
+            function hexToRgb(hex){
+                if(!hex) return null;
+                hex = hex.trim();
+                if (hex.startsWith('#')) hex = hex.substring(1);
+                if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+                var n = parseInt(hex,16);
+                if (isNaN(n)) return null;
+                return [(n>>16)&255, (n>>8)&255, n&255];
+            }
+            function refresh(){
+                var p = getComputedStyle(document.documentElement).getPropertyValue('--ofc-primary');
+                var rgb = hexToRgb(p);
+                if(rgb){ document.documentElement.style.setProperty('--ofc-primary-rgb', rgb.join(',')); }
+            }
+            document.addEventListener('DOMContentLoaded', refresh);
+        })();
+    </script>
 </head>
-<body data-theme="light">
+<body data-theme="light" class="@(isPainelPage ? "page-painel" : "page-common")">
     <nav class="navbar navbar-expand navbar-dark">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-outline-light btn-sm me-2" type="button" title="Alternar menu">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <a class="navbar-brand d-flex align-items-center" asp-controller="Painel" asp-action="Index">
-                    <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
-                    <span>@appName</span>
-                </a>
+                @if (isAuthenticated)
+                {
+                    <button id="sidebarToggle" class="btn btn-outline-light btn-sm me-2" type="button" title="Alternar menu">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                }
+                @if (isAuthenticated)
+                {
+                    <a class="navbar-brand d-flex align-items-center" asp-controller="Painel" asp-action="Index">
+                        <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
+                        <span>@appName</span>
+                    </a>
+                }
+                else
+                {
+                    <a class="navbar-brand d-flex align-items-center" asp-controller="Account" asp-action="Login">
+                        <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
+                        <span>@appName</span>
+                    </a>
+                }
             </div>
             <div class="d-flex align-items-center">
+                @if (isAuthenticated)
+                {
+                    <div class="text-end me-3">
+                        <div class="small text-muted">Oficina atual</div>
+                        <div class="fw-semibold">@nomeOficinaAtual</div>
+                        @if (!string.IsNullOrWhiteSpace(grupoAtual))
+                        {
+                            <div class="small text-muted">@grupoAtual</div>
+                        }
+                        <a class="btn btn-link btn-sm p-0" asp-controller="Oficinas" asp-action="Selecionar">Trocar</a>
+                    </div>
+                }
+                <span class="badge bg-info text-dark me-3">Plano: @PlanoLabel(planoAtual)</span>
                 <button id="themeToggle" class="btn btn-outline-light btn-sm me-3" type="button">Tema</button>
                 <span class="navbar-text me-2">@displayName</span>
-                @if (SignInManager.IsSignedIn(User))
+                @if (isAuthenticated)
                 {
                     <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline ms-2">
                         @Html.AntiForgeryToken()
@@ -176,30 +309,62 @@
     </nav>
 
     <div class="layout">
-        <aside id="sidebar" class="sidebar">
-            <nav class="nav flex-column p-2">
-                @if (isAdminOrSupervisor)
-                {
-                    <a class="nav-link" asp-controller="Painel" asp-action="Index">Painel</a>
-                    <a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a>
-                    <a class="nav-link" asp-controller="Veiculos" asp-action="Index">Veículos</a>
-                    <a class="nav-link" asp-controller="OrdensServico" asp-action="Index">Ordens de Serviço</a>
-                    <a class="nav-link" asp-controller="Suporte" asp-action="Index">Suporte</a>
-                }
-                else if (isMecanico)
-                {
-                    <a class="nav-link" asp-controller="OrdensServico" asp-action="Minhas">Minhas OS</a>
-                }
-                else if (isSuporte)
-                {
-                    <a class="nav-link" asp-controller="Suporte" asp-action="Index">Configurações do Ambiente</a>
-                }
-                else
-                {
-                    <a class="nav-link" asp-controller="Painel" asp-action="Index">Painel</a>
-                }
-            </nav>
-        </aside>
+        @if (isAuthenticated)
+        {
+            <aside id="sidebar" class="sidebar">
+                <nav class="nav flex-column p-2">
+                    @if (isAdminOrSupervisor)
+                    {
+                        <a class="nav-link" asp-controller="Painel" asp-action="Index">Painel</a>
+                        <a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a>
+                        <a class="nav-link" asp-controller="Veiculos" asp-action="Index">Veículos</a>
+                        <a class="nav-link" asp-controller="OrdensServico" asp-action="Index">Ordens de Serviço</a>
+                        @if (planoTemEstoque)
+                        {
+                            <div class="nav-item">
+                                <a class="nav-link d-flex justify-content-between align-items-center @(isEstoqueSection ? "active" : string.Empty)"
+                                   data-bs-toggle="collapse"
+                                   href="#menuEstoque"
+                                   role="button"
+                                   aria-expanded="@(isEstoqueSection.ToString().ToLower())"
+                                   aria-controls="menuEstoque">
+                                    <span>Estoque</span>
+                                    <span class="small">@((isEstoqueSection ? "▲" : "▼"))</span>
+                                </a>
+                                <div class="collapse @(isEstoqueSection ? "show" : string.Empty)" id="menuEstoque">
+                                    <a class="nav-link ms-4" asp-controller="Estoque" asp-action="Index">Visão geral</a>
+                                    <a class="nav-link ms-4" asp-controller="MovimentacaoEstoque" asp-action="Index">Movimentações</a>
+                                    <a class="nav-link ms-4" asp-controller="Peca" asp-action="Index">Peças</a>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="nav-link disabled text-muted" title="Disponível no Plano Pro">Estoque (Plano Pro)</span>
+                        }
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <a class="nav-link" asp-controller="AdminOficinas" asp-action="Index">Minhas Oficinas</a>
+                            <a class="nav-link" asp-controller="Funcionarios" asp-action="Index">Funcionários</a>
+                        }
+                        <a class="nav-link" asp-controller="Suporte" asp-action="Index">Suporte</a>
+                    }
+                    else if (isMecanico)
+                    {
+                        <a class="nav-link" asp-controller="OrdensServico" asp-action="Minhas">Minhas OS</a>
+                    }
+                    else if (isDiretor)
+                    {
+                        <a class="nav-link" asp-controller="Diretor" asp-action="Index">Meus Grupos</a>
+                    }
+                    else if (isSuporte)
+                    {
+                        <a class="nav-link" asp-controller="Grupos" asp-action="Index">Grupos de Oficinas</a>
+                        <a class="nav-link" asp-controller="Suporte" asp-action="Index">Configurações do Ambiente</a>
+                    }
+                </nav>
+            </aside>
+        }
         <main class="content">
             <div class="container-fluid">
                 @RenderBody()
@@ -244,77 +409,7 @@
                 document.getElementById('sidebar')?.classList.toggle('collapsed');
             });
 
-            // Initialize DataTables for tables with .datatable
-            const initDT = () => {
-                $('table.datatable').each(function () {
-                    const $table = $(this);
-                    if ($table.data('dt-initialized')) return;
-
-                    const $thead = $table.find('thead');
-                    const $headerRow = $thead.find('tr').first();
-                    const $filterRow = $('<tr class="dt-filters"/>').insertAfter($headerRow);
-                    const thCount = $headerRow.find('th').length;
-                    $headerRow$headerRow.find('th').each(function (idx) {
-    const $th = $('<th/>').appendTo($filterRow);
-    const $cell = $(this);
-    if (idx < thCount - 1) {
-        if ($cell.hasClass('dt-filter-select') || $cell.hasClass('dt-filter')) {
-            $th.append('<select class="form-select form-select-sm"><option value="">Todos</option></select>');
-        } else if ($cell.hasClass('dt-filter-text')) {
-            $th.append('<input type="text" class="form-control form-control-sm" placeholder="Filtrar" />');
-        }
-    }
-});
-
-                    const dt = $table.DataTable({
-                        pageLength: 10,
-                        lengthChange: true,
-                        paging: true,
-                        responsive: true,
-                        fixedHeader: true,
-                        orderCellsTop: true,
-                        order: [],
-                        dom: 'Bfrtip',
-                        buttons: [
-                            { extend: 'pageLength', className: 'btn btn-sm btn-primary' },
-                            { extend: 'copy', className: 'btn btn-sm btn-primary' },
-                            { extend: 'csv', className: 'btn btn-sm btn-primary' },
-                            { extend: 'excel', className: 'btn btn-sm btn-primary' },
-                            { extend: 'pdf', className: 'btn btn-sm btn-primary' },
-                            { extend: 'print', className: 'btn btn-sm btn-primary' },
-                            { extend: 'colvis', className: 'btn btn-sm btn-primary' }
-                        ],
-                        stateSave: true,
-                        autoWidth: false,
-                        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Todos']],
-                        language: {
-                            url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json'
-                        }
-                    });
-
-                    // Preencher selects com valores únicos e aplicar filtros
-                    dt.columns().every(function (idx) {
-                        const column = this;
-                        const $cell = $filterRow.find('th').eq(idx);
-                        const $select = $cell.find('select');
-                        if ($select.length === 0) return;
-                        column.data().unique().sort().each(function (d) {
-                            const text = $('<div>').html(d).text().trim();
-                            if (text && $select.find('option').filter(function(){return $(this).text() === text;}).length === 0) {
-                                $select.append($('<option>', { value: text, text: text }));
-                            }
-                        });
-                        $select.on('change', function () {
-                            const val = $.fn.dataTable.util.escapeRegex($(this).val());
-                            column.search(val ? '^' + val + '$' : '', true, false).draw();
-                        });
-                    });
-
-                    $table.attr('data-dt-initialized', '1');
-                });
-            };
-            // Run after DOM ready
-            $(initDT);
+            // DataTables init moved to per-page scripts
         })();
     </script>
     @await RenderSectionAsync("Scripts", required: false)

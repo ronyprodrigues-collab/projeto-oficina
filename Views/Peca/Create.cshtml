@@ -1,0 +1,19 @@
+@model Models.PecaEstoque
+@{
+    ViewData["Title"] = "Nova peça";
+}
+
+<h1>Nova peça</h1>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <partial name="_PecaFormFields" model="Model" />
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}

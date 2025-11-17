@@ -1,0 +1,45 @@
+@model IEnumerable<Models.GrupoOficina>
+@{
+    ViewData["Title"] = "Grupos de Oficinas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Grupos de Oficinas</h1>
+    <a class="btn btn-primary" asp-action="Create">Novo Grupo</a>
+</div>
+
+@if (TempData["Msg"] != null)
+{
+    <div class="alert alert-success">@TempData["Msg"]</div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Diretor</th>
+            <th>Plano</th>
+            <th>Oficinas</th>
+            <th>Cores</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Nome</td>
+            <td>@(item.Diretor != null ? (string.IsNullOrWhiteSpace(item.Diretor.NomeCompleto) ? item.Diretor.Email : item.Diretor.NomeCompleto) : "-")</td>
+            <td>@item.Plano</td>
+            <td>@item.Oficinas?.Count ?? 0</td>
+            <td>
+                <span class="badge" style="background:@item.CorPrimaria;">&nbsp;</span>
+                <span class="badge" style="background:@item.CorSecundaria;">&nbsp;</span>
+            </td>
+            <td>
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Editar</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
