@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: projetos-oficina
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Database__ServerVersion
+        value: 8.0.34-mysql
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production

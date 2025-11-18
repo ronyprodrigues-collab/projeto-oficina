@@ -1,0 +1,12 @@
+bin/
+obj/
+.git/
+.vscode/
+.vs/
+*.user
+*.swp
+*.suo
+*.cache
+*.patch
+.DS_Store
+node_modules/

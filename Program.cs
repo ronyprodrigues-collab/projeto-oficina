@@ -8,15 +8,31 @@ using Services;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Hosting.Server;
 using System.Linq;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --------------------------------------------
-// 🔥 1. BANCO DE DADOS -> SQL SERVER FIXO
+// 🔥 1. BANCO DE DADOS -> MYSQL
 // --------------------------------------------
+var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' não configurada.");
+var serverVersionText = builder.Configuration["Database:ServerVersion"];
+if (string.IsNullOrWhiteSpace(serverVersionText))
+{
+    throw new InvalidOperationException("A configuração 'Database:ServerVersion' precisa ser informada (ex.: 8.0.34-mysql).");
+}
+var serverVersion = ServerVersion.Parse(serverVersionText);
+
 builder.Services.AddDbContext<OficinaDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseMySql(defaultConnection, serverVersion, mySqlOptions =>
+    {
+        mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    });
 });
 
 // --------------------------------------------

@@ -21,6 +21,9 @@ namespace Models
         public ICollection<OficinaCliente> Clientes { get; set; } = new List<OficinaCliente>();
         public ICollection<OficinaVeiculo> Veiculos { get; set; } = new List<OficinaVeiculo>();
         public ICollection<OficinaUsuario> Usuarios { get; set; } = new List<OficinaUsuario>();
+        public ICollection<ContaFinanceira> ContasFinanceiras { get; set; } = new List<ContaFinanceira>();
+        public ICollection<CategoriaFinanceira> CategoriasFinanceiras { get; set; } = new List<CategoriaFinanceira>();
+        public ICollection<LancamentoFinanceiro> LancamentosFinanceiros { get; set; } = new List<LancamentoFinanceiro>();
 
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }

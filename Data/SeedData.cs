@@ -154,6 +154,56 @@ namespace Data
                 await db.SaveChangesAsync();
             }
 
+            if (!await db.ContasFinanceiras.AnyAsync(c => c.OficinaId == oficinaPadrao.Id))
+            {
+                db.ContasFinanceiras.AddRange(
+                    new ContaFinanceira
+                    {
+                        OficinaId = oficinaPadrao.Id,
+                        Nome = "Caixa Principal",
+                        Tipo = FinanceiroTipoConta.Caixa,
+                        SaldoInicial = 0
+                    },
+                    new ContaFinanceira
+                    {
+                        OficinaId = oficinaPadrao.Id,
+                        Nome = "Banco Padrão",
+                        Tipo = FinanceiroTipoConta.Banco,
+                        Banco = "000",
+                        Agencia = "0000",
+                        NumeroConta = "000000-0",
+                        SaldoInicial = 0
+                    });
+                await db.SaveChangesAsync();
+            }
+
+            if (!await db.CategoriasFinanceiras.AnyAsync(c => c.OficinaId == oficinaPadrao.Id))
+            {
+                db.CategoriasFinanceiras.AddRange(
+                    new CategoriaFinanceira
+                    {
+                        OficinaId = oficinaPadrao.Id,
+                        Nome = "Serviços de Oficina",
+                        Tipo = FinanceiroTipoLancamento.Receita,
+                        Descricao = "Receitas provenientes de ordens de serviço."
+                    },
+                    new CategoriaFinanceira
+                    {
+                        OficinaId = oficinaPadrao.Id,
+                        Nome = "Compra de Peças",
+                        Tipo = FinanceiroTipoLancamento.Despesa,
+                        Descricao = "Reposição de estoque e compra de insumos."
+                    },
+                    new CategoriaFinanceira
+                    {
+                        OficinaId = oficinaPadrao.Id,
+                        Nome = "Folha de Pagamento",
+                        Tipo = FinanceiroTipoLancamento.Despesa,
+                        Descricao = "Custos com salários e encargos."
+                    });
+                await db.SaveChangesAsync();
+            }
+
             var usuariosExistentes = await db.Users.ToListAsync();
             foreach (var usuario in usuariosExistentes)
             {

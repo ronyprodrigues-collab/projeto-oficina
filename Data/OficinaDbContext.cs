@@ -26,6 +26,10 @@ namespace Data
         public DbSet<OficinaUsuario> OficinasUsuarios { get; set; } = null!;
         public DbSet<OficinaCliente> OficinasClientes { get; set; } = null!;
         public DbSet<OficinaVeiculo> OficinasVeiculos { get; set; } = null!;
+        public DbSet<ContaFinanceira> ContasFinanceiras { get; set; } = null!;
+        public DbSet<CategoriaFinanceira> CategoriasFinanceiras { get; set; } = null!;
+        public DbSet<LancamentoFinanceiro> LancamentosFinanceiros { get; set; } = null!;
+        public DbSet<LancamentoParcela> LancamentoParcelas { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -107,6 +111,42 @@ namespace Data
                 .HasForeignKey(m => m.MovimentacaoEntradaReferenciaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<ContaFinanceira>()
+                .Property(c => c.SaldoInicial)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<LancamentoFinanceiro>()
+                .Property(l => l.ValorTotal)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<LancamentoFinanceiro>()
+                .HasOne(l => l.Categoria)
+                .WithMany(c => c.Lancamentos)
+                .HasForeignKey(l => l.CategoriaFinanceiraId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LancamentoFinanceiro>()
+                .HasOne(l => l.ContaPadrao)
+                .WithMany(c => c.LancamentosPadrao)
+                .HasForeignKey(l => l.ContaPadraoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LancamentoFinanceiro>()
+                .HasOne(l => l.Cliente)
+                .WithMany()
+                .HasForeignKey(l => l.ClienteId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<LancamentoParcela>()
+                .Property(p => p.Valor)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<LancamentoParcela>()
+                .HasOne(p => p.ContaPagamento)
+                .WithMany(c => c.ParcelasPagas)
+                .HasForeignKey(p => p.ContaPagamentoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<Cliente>().HasQueryFilter(c => !c.IsDeleted);
             modelBuilder.Entity<Veiculo>().HasQueryFilter(v => !v.IsDeleted);
             modelBuilder.Entity<OrdemServico>().HasQueryFilter(o => !o.IsDeleted);
@@ -115,6 +155,10 @@ namespace Data
             modelBuilder.Entity<PecaEstoque>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<MovimentacaoEstoque>().HasQueryFilter(m => !m.IsDeleted);
             modelBuilder.Entity<Configuracoes>().HasQueryFilter(c => !c.IsDeleted);
+            modelBuilder.Entity<ContaFinanceira>().HasQueryFilter(c => !c.IsDeleted);
+            modelBuilder.Entity<CategoriaFinanceira>().HasQueryFilter(c => !c.IsDeleted);
+            modelBuilder.Entity<LancamentoFinanceiro>().HasQueryFilter(l => !l.IsDeleted);
+            modelBuilder.Entity<LancamentoParcela>().HasQueryFilter(p => !p.IsDeleted);
 
             modelBuilder.Entity<GrupoOficina>()
                 .HasIndex(g => g.Nome)
