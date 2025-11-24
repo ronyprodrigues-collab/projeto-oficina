@@ -1,5 +1,9 @@
 using System;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,13 +30,11 @@ namespace projetos.Controllers
             _oficinaContext = oficinaContext;
         }
 
-        // GET: Clientes
         public async Task<IActionResult> Index()
         {
             var oficinaId = await ObterOficinaAtualIdAsync();
-            var clientes = await _context.OficinasClientes
-                .Where(oc => oc.OficinaId == oficinaId)
-                .Select(oc => oc.Cliente)
+            var clientes = await _context.Clientes
+                .Where(c => c.Oficinas.Any(o => o.OficinaId == oficinaId))
                 .Include(c => c.Veiculos)
                 .Include(c => c.Oficinas)
                     .ThenInclude(oc => oc.Oficina)
@@ -41,7 +43,6 @@ namespace projetos.Controllers
             return View(clientes);
         }
 
-        // GET: Clientes/Details/5
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -58,7 +59,6 @@ namespace projetos.Controllers
             return View(cliente);
         }
 
-        // GET: Clientes/Create
         public async Task<IActionResult> Create()
         {
             var responsavel = await ObterNomeResponsavelAsync();
@@ -69,7 +69,28 @@ namespace projetos.Controllers
             return View(model);
         }
 
-        // POST: Clientes/Create
+        [HttpGet]
+        public IActionResult Import()
+        {
+            return View(new ImportClientesViewModel());
+        }
+
+        [HttpGet]
+        public IActionResult ModeloImportacao()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Nome;Email;Telefone;CPF_CNPJ;TipoCliente;Responsavel;Endereco;Numero;Bairro;Cidade;Estado;CEP;Observacoes");
+            sb.AppendLine("João Cliente;joao@cliente.com;(11)99999-1234;12345678901;PF;João;Rua das Flores;100;Centro;São Paulo;SP;01000-000;VIP");
+            sb.AppendLine("Empresa Exemplo;contato@empresa.com;1133334444;12345678000199;PJ;Maria Responsável;Av. Paulista;2000;Bela Vista;São Paulo;SP;01311-000;Cliente corporativo");
+            using var ms = new MemoryStream();
+            using (var writer = new StreamWriter(ms, new UTF8Encoding(true), leaveOpen: true))
+            {
+                writer.Write(sb.ToString());
+            }
+            ms.Position = 0;
+            return File(ms.ToArray(), "text/csv", "modelo-clientes.csv");
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind(
@@ -102,7 +123,173 @@ namespace projetos.Controllers
             return View(cliente);
         }
 
-        // GET: Clientes/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Import(ImportClientesViewModel model)
+        {
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null) throw new InvalidOperationException("Nenhuma oficina selecionada.");
+
+            if (model.Arquivo == null || model.Arquivo.Length == 0)
+            {
+                ModelState.AddModelError(nameof(model.Arquivo), "Selecione um arquivo CSV válido.");
+                return View(model);
+            }
+
+            var erros = new List<string>();
+            var sucesso = 0;
+            using var reader = new StreamReader(model.Arquivo.OpenReadStream(), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            string? line;
+            int linhaNum = 0;
+            while ((line = await reader.ReadLineAsync()) != null)
+            {
+                linhaNum++;
+                if (linhaNum == 1 && line.IndexOf("Nome", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                var campos = ParseCsvLine(line);
+                if (campos.Length < 13)
+                {
+                    erros.Add($"Linha {linhaNum}: esperado 13 colunas.");
+                    continue;
+                }
+
+                var nome = campos[0];
+                var email = campos[1];
+                var telefone = campos[2];
+                var documento = campos[3];
+                var tipo = campos[4];
+                var responsavel = campos[5];
+                var endereco = campos[6];
+                var numero = campos[7];
+                var bairro = campos[8];
+                var cidade = campos[9];
+                var estado = campos[10];
+                var cep = campos[11];
+                var observacoes = campos[12];
+
+                var nomeNormalizado = string.IsNullOrWhiteSpace(nome) ? string.Empty : nome.Trim();
+                var emailNormalizado = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+                var telefoneNormalizado = string.IsNullOrWhiteSpace(telefone) ? null : telefone.Trim();
+                var documentoNormalizado = string.IsNullOrWhiteSpace(documento) ? null : documento.Trim();
+                var responsavelNormalizado = string.IsNullOrWhiteSpace(responsavel) ? null : responsavel.Trim();
+                var enderecoNormalizado = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim();
+                var numeroNormalizado = string.IsNullOrWhiteSpace(numero) ? null : numero.Trim();
+                var bairroNormalizado = string.IsNullOrWhiteSpace(bairro) ? null : bairro.Trim();
+                var cidadeNormalizado = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
+                var estadoNormalizado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+                var cepNormalizado = string.IsNullOrWhiteSpace(cep) ? null : cep.Trim();
+                var observacoesNormalizado = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim();
+
+                if (string.IsNullOrWhiteSpace(nomeNormalizado))
+                {
+                    erros.Add($"Linha {linhaNum}: nome é obrigatório.");
+                    continue;
+                }
+
+                if (emailNormalizado == null && documentoNormalizado == null)
+                {
+                    erros.Add($"Linha {linhaNum}: informe e-mail ou CPF/CNPJ para identificação.");
+                    continue;
+                }
+
+                var tipoNormalizado = string.Equals(tipo, "PJ", StringComparison.OrdinalIgnoreCase) ? "PJ" : "PF";
+                Cliente? existente = null;
+                if (!string.IsNullOrWhiteSpace(documentoNormalizado))
+                {
+                    existente = await _context.Clientes
+                        .Include(c => c.Oficinas)
+                            .ThenInclude(oc => oc.Oficina)
+                        .FirstOrDefaultAsync(c => c.CPF_CNPJ == documentoNormalizado);
+                }
+                if (existente == null && !string.IsNullOrWhiteSpace(emailNormalizado))
+                {
+                    existente = await _context.Clientes
+                        .Include(c => c.Oficinas)
+                            .ThenInclude(oc => oc.Oficina)
+                        .FirstOrDefaultAsync(c => c.Email == emailNormalizado);
+                }
+
+                if (existente != null)
+                {
+                    if (ClientePertenceOutroGrupo(existente, oficina.GrupoOficinaId))
+                    {
+                        erros.Add($"Linha {linhaNum}: cliente já está vinculado a outro grupo.");
+                        continue;
+                    }
+
+                    existente.Nome = string.IsNullOrWhiteSpace(existente.Nome) ? nomeNormalizado : existente.Nome;
+                    if (!string.IsNullOrWhiteSpace(telefoneNormalizado))
+                        existente.Telefone = telefoneNormalizado!;
+                    if (!string.IsNullOrWhiteSpace(emailNormalizado))
+                        existente.Email = emailNormalizado!;
+                    if (string.IsNullOrWhiteSpace(existente.CPF_CNPJ) && documentoNormalizado != null)
+                        existente.CPF_CNPJ = documentoNormalizado;
+                    existente.TipoCliente = existente.TipoCliente ?? tipoNormalizado;
+                    if (!string.IsNullOrWhiteSpace(responsavelNormalizado))
+                        existente.Responsavel = responsavelNormalizado!;
+                    if (!string.IsNullOrWhiteSpace(enderecoNormalizado))
+                        existente.Endereco = enderecoNormalizado;
+                    if (!string.IsNullOrWhiteSpace(numeroNormalizado))
+                        existente.Numero = numeroNormalizado;
+                    if (!string.IsNullOrWhiteSpace(bairroNormalizado))
+                        existente.Bairro = bairroNormalizado;
+                    if (!string.IsNullOrWhiteSpace(cidadeNormalizado))
+                        existente.Cidade = cidadeNormalizado;
+                    if (!string.IsNullOrWhiteSpace(estadoNormalizado))
+                        existente.Estado = estadoNormalizado;
+                    if (!string.IsNullOrWhiteSpace(cepNormalizado))
+                        existente.CEP = cepNormalizado;
+                    if (!string.IsNullOrWhiteSpace(observacoesNormalizado))
+                    {
+                        existente.Observacoes = string.IsNullOrWhiteSpace(existente.Observacoes)
+                            ? observacoesNormalizado
+                            : $"{existente.Observacoes} | {observacoesNormalizado}";
+                    }
+
+                    await VincularClienteAsync(existente.Id, oficina.Id);
+                    sucesso++;
+                    continue;
+                }
+
+                var cliente = new Cliente
+                {
+                    Nome = nomeNormalizado,
+                    Email = emailNormalizado ?? string.Empty,
+                    Telefone = telefoneNormalizado ?? string.Empty,
+                    CPF_CNPJ = documentoNormalizado ?? string.Empty,
+                    TipoCliente = tipoNormalizado,
+                    Responsavel = responsavelNormalizado,
+                    Endereco = enderecoNormalizado ?? string.Empty,
+                    Numero = numeroNormalizado,
+                    Bairro = bairroNormalizado,
+                    Cidade = cidadeNormalizado,
+                    Estado = estadoNormalizado,
+                    CEP = cepNormalizado,
+                    Observacoes = observacoesNormalizado
+                };
+                _context.Clientes.Add(cliente);
+                await _context.SaveChangesAsync();
+                await VincularClienteAsync(cliente.Id, oficina.Id);
+                sucesso++;
+            }
+
+            model.Processado = true;
+            model.TotalImportados = sucesso;
+            model.Erros = erros;
+            if (sucesso > 0)
+            {
+                TempData["Msg"] = $"{sucesso} cliente(s) importado(s) com sucesso.";
+            }
+            return View(model);
+        }
+
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -118,7 +305,6 @@ namespace projetos.Controllers
             return View(cliente);
         }
 
-        // POST: Clientes/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind(
@@ -175,7 +361,6 @@ namespace projetos.Controllers
             return user.Email ?? user.UserName ?? string.Empty;
         }
 
-        // GET: Clientes/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -191,7 +376,6 @@ namespace projetos.Controllers
             return View(cliente);
         }
 
-        // POST: Clientes/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -221,9 +405,14 @@ namespace projetos.Controllers
 
         public async Task<IActionResult> Vincular(string? busca)
         {
-            var oficinaId = await ObterOficinaAtualIdAsync();
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null) throw new InvalidOperationException("Nenhuma oficina selecionada.");
+            var oficinaId = oficina.Id;
+            var grupoId = oficina.GrupoOficinaId;
+
             var query = _context.Clientes
-                .Where(c => !c.Oficinas.Any(o => o.OficinaId == oficinaId));
+                .Where(c => !c.Oficinas.Any(o => o.OficinaId == oficinaId))
+                .Where(c => !c.Oficinas.Any() || c.Oficinas.All(o => o.Oficina.GrupoOficinaId == grupoId));
 
             if (!string.IsNullOrWhiteSpace(busca))
             {
@@ -264,7 +453,11 @@ namespace projetos.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> VincularCliente(int clienteId)
         {
-            var oficinaId = await ObterOficinaAtualIdAsync();
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null) throw new InvalidOperationException("Nenhuma oficina selecionada.");
+            var oficinaId = oficina.Id;
+            var grupoId = oficina.GrupoOficinaId;
+
             var existe = await _context.OficinasClientes
                 .AnyAsync(oc => oc.OficinaId == oficinaId && oc.ClienteId == clienteId);
             if (existe)
@@ -273,10 +466,21 @@ namespace projetos.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            var cliente = await _context.Clientes.FindAsync(clienteId);
+            var cliente = await _context.Clientes
+                .Include(c => c.Oficinas)
+                    .ThenInclude(oc => oc.Oficina)
+                .FirstOrDefaultAsync(c => c.Id == clienteId);
             if (cliente == null)
             {
                 TempData["Error"] = "Cliente não encontrado.";
+                return RedirectToAction(nameof(Vincular));
+            }
+
+            var pertenceOutroGrupo = cliente.Oficinas
+                .Any(oc => oc.Oficina.GrupoOficinaId != grupoId);
+            if (pertenceOutroGrupo)
+            {
+                TempData["Error"] = "Este cliente já pertence a outro grupo de oficinas e não pode ser vinculado aqui.";
                 return RedirectToAction(nameof(Vincular));
             }
 
@@ -290,6 +494,36 @@ namespace projetos.Controllers
 
             TempData["Msg"] = "Cliente vinculado à oficina.";
             return RedirectToAction(nameof(Index));
+        }
+
+        private bool ClientePertenceOutroGrupo(Cliente cliente, int grupoId)
+        {
+            return cliente.Oficinas.Any(oc => oc.Oficina.GrupoOficinaId != grupoId);
+        }
+
+        private async Task VincularClienteAsync(int clienteId, int oficinaId)
+        {
+            var jaVinculado = await _context.OficinasClientes.AnyAsync(oc => oc.OficinaId == oficinaId && oc.ClienteId == clienteId);
+            if (!jaVinculado)
+            {
+                _context.OficinasClientes.Add(new OficinaCliente
+                {
+                    ClienteId = clienteId,
+                    OficinaId = oficinaId,
+                    VinculadoEm = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private static string[] ParseCsvLine(string line)
+        {
+            var valores = line.Split(';');
+            if (valores.Length == 1)
+            {
+                valores = line.Split(',');
+            }
+            return valores.Select(v => v?.Trim() ?? string.Empty).ToArray();
         }
     }
 }

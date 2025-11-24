@@ -2,6 +2,13 @@
 
 Todas as mudanças notáveis deste projeto serão documentadas aqui.
 
+## [0.6.0] - 2025-11-19
+- Financeiro (Plano Plus): painel com saldos por conta, pendências de receber/pagar, últimas OS concluídas e criação de receitas/despesas parceladas com baixa de parcelas.
+- OS → Financeiro: novos campos de forma de pagamento, parcelas e conta de recebimento; ao concluir a OS geramos lançamentos de receita, custo de peças e comissão do mecânico (com juros após carência) vinculados às categorias/contas padrão.
+- Importações em massa: clientes e funcionários podem ser carregados via CSV, com modelo para download, validação linha a linha e resumo de erros/sucessos.
+- Convites e onboarding: suporte/diretores criam tokens com perfil e comissão; o registro aceita o token, aplica o papel e marca o convite como usado. Suporte enxerga usuários pendentes e pode reatribuir vínculos para grupos/oficinas.
+- Governança SaaS: diretores criam administradores para o grupo, novas oficinas respeitam limite do plano e já nascem com contas/categorias financeiras padrão; suporte aplica paletas de cores prontas por grupo/oficina e define proprietários/admins.
+
 ## [0.4.0] - 2025-11-14
 - Módulo de estoque FIFO completo: catálogo de peças, movimentações de entrada/saída, integração com ordens de serviço e migração inicial única para facilitar instalações limpas.
 - OS x Estoque: modal de peças busca o cadastro e usa o preço de venda; ao aprovar/editar/excluir ou reprovar uma OS o estoque é debitado ou devolvido automaticamente, mantendo histórico de referência ao lote.

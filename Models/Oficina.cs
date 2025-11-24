@@ -24,6 +24,8 @@ namespace Models
         public ICollection<ContaFinanceira> ContasFinanceiras { get; set; } = new List<ContaFinanceira>();
         public ICollection<CategoriaFinanceira> CategoriasFinanceiras { get; set; } = new List<CategoriaFinanceira>();
         public ICollection<LancamentoFinanceiro> LancamentosFinanceiros { get; set; } = new List<LancamentoFinanceiro>();
+        public int FinanceiroPrazoSemJurosDias { get; set; } = 90;
+        public decimal FinanceiroJurosMensal { get; set; }
 
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }

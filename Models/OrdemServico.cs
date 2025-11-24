@@ -26,6 +26,14 @@ namespace Models
         public Veiculo Veiculo { get; set; } = null!;
         public ApplicationUser? Mecanico { get; set; }
         public Oficina Oficina { get; set; } = null!;
+        public FinanceiroFormaPagamento FormaPagamento { get; set; } = FinanceiroFormaPagamento.Dinheiro;
+        public int QuantidadeParcelas { get; set; } = 1;
+        public DateTime? DataPrimeiroVencimento { get; set; }
+        public int? ContaRecebimentoId { get; set; }
+        public ContaFinanceira? ContaRecebimento { get; set; }
+        public int? LancamentoFinanceiroReceitaId { get; set; }
+        public int? LancamentoFinanceiroCustoPecasId { get; set; }
+        public int? LancamentoFinanceiroComissaoId { get; set; }
 
         public List<ServicoItem> Servicos { get; set; } = new();
         public List<PecaItem> Pecas { get; set; } = new();

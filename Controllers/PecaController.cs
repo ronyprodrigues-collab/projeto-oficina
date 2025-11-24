@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Data;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Models;
+using Services;
 
 namespace projetos.Controllers
 {
@@ -14,21 +16,29 @@ namespace projetos.Controllers
     public class PecaController : Controller
     {
         private readonly OficinaDbContext _db;
+        private readonly IOficinaContext _oficinaContext;
 
-        public PecaController(OficinaDbContext db)
+        public PecaController(OficinaDbContext db, IOficinaContext oficinaContext)
         {
             _db = db;
+            _oficinaContext = oficinaContext;
         }
 
         public async Task<IActionResult> Index()
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var lista = await _db.PecaEstoques.AsNoTracking()
+                .Where(p => p.OficinaId == oficinaId)
                 .OrderBy(p => p.Nome)
                 .ToListAsync();
             return View(lista);
         }
 
-        public IActionResult Create() => View();
+        public async Task<IActionResult> Create()
+        {
+            await ObterOficinaAtualIdAsync();
+            return View();
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -45,7 +55,7 @@ namespace projetos.Controllers
 
             model.UnidadeMedida = model.UnidadeMedida.ToLowerInvariant();
             model.SaldoAtual = 0;
-            model.OficinaId = 1; // TODO: substituir pelo contexto da oficina selecionada
+            model.OficinaId = await ObterOficinaAtualIdAsync();
             _db.PecaEstoques.Add(model);
             await _db.SaveChangesAsync();
             TempData["Msg"] = "Peça cadastrada.";
@@ -54,7 +64,8 @@ namespace projetos.Controllers
 
         public async Task<IActionResult> Edit(int id)
         {
-            var item = await _db.PecaEstoques.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var item = await _db.PecaEstoques.FirstOrDefaultAsync(p => p.Id == id && p.OficinaId == oficinaId);
             if (item == null) return NotFound();
             return View(item);
         }
@@ -74,7 +85,8 @@ namespace projetos.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            var entity = await _db.PecaEstoques.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var entity = await _db.PecaEstoques.FirstOrDefaultAsync(p => p.Id == id && p.OficinaId == oficinaId);
             if (entity == null) return NotFound();
 
             entity.Nome = model.Nome;
@@ -90,7 +102,8 @@ namespace projetos.Controllers
 
         public async Task<IActionResult> Delete(int id)
         {
-            var item = await _db.PecaEstoques.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var item = await _db.PecaEstoques.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && p.OficinaId == oficinaId);
             if (item == null) return NotFound();
             return View(item);
         }
@@ -99,7 +112,8 @@ namespace projetos.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var item = await _db.PecaEstoques.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var item = await _db.PecaEstoques.FirstOrDefaultAsync(p => p.Id == id && p.OficinaId == oficinaId);
             if (item == null) return NotFound();
 
             var possuiMovimento = await _db.MovimentacoesEstoque.AnyAsync(m => m.PecaEstoqueId == id);
@@ -118,9 +132,10 @@ namespace projetos.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPecaInfo(int id)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var peca = await _db.PecaEstoques.AsNoTracking()
                 .Include(p => p.Movimentacoes)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id && p.OficinaId == oficinaId);
 
             if (peca == null) return NotFound();
 
@@ -139,6 +154,16 @@ namespace projetos.Controllers
                 unidade = peca.UnidadeMedida,
                 saldo = peca.SaldoAtual
             });
+        }
+
+        private async Task<int> ObterOficinaAtualIdAsync()
+        {
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null)
+            {
+                throw new InvalidOperationException("Nenhuma oficina selecionada no contexto atual.");
+            }
+            return oficina.Id;
         }
     }
 }

@@ -85,7 +85,8 @@ namespace Data
                         Email = email,
                         EmailConfirmed = true,
                         NomeCompleto = nome,
-                        Cargo = cargo
+                        Cargo = cargo,
+                        PercentualComissao = cargo == "Mecanico" ? 10 : 0
                     };
                     var createResult = await userManager.CreateAsync(user, specificPassword ?? defaultPassword);
                     if (!createResult.Succeeded)
@@ -102,6 +103,11 @@ namespace Data
                     {
                         Console.WriteLine($"Falha ao atribuir papel '{role}' ao usuário '{email}': {string.Join(", ", GetErrors(addRoleResult))}");
                     }
+                }
+                else if (role == "Mecanico" && user.PercentualComissao <= 0)
+                {
+                    user.PercentualComissao = 10;
+                    await userManager.UpdateAsync(user);
                 }
             }
         }
@@ -148,10 +154,30 @@ namespace Data
                     GrupoOficinaId = grupoPadrao.Id,
                     Plano = grupoPadrao.Plano,
                     CorPrimaria = "#0d6efd",
-                    CorSecundaria = "#6c757d"
+                    CorSecundaria = "#6c757d",
+                    FinanceiroPrazoSemJurosDias = 90,
+                    FinanceiroJurosMensal = 0.02m
                 };
                 db.Oficinas.Add(oficinaPadrao);
                 await db.SaveChangesAsync();
+            }
+            else
+            {
+                var atualizado = false;
+                if (oficinaPadrao.FinanceiroPrazoSemJurosDias <= 0)
+                {
+                    oficinaPadrao.FinanceiroPrazoSemJurosDias = 90;
+                    atualizado = true;
+                }
+                if (oficinaPadrao.FinanceiroJurosMensal <= 0)
+                {
+                    oficinaPadrao.FinanceiroJurosMensal = 0.02m;
+                    atualizado = true;
+                }
+                if (atualizado)
+                {
+                    await db.SaveChangesAsync();
+                }
             }
 
             if (!await db.ContasFinanceiras.AnyAsync(c => c.OficinaId == oficinaPadrao.Id))

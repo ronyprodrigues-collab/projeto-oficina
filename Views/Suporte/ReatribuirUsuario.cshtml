@@ -1,0 +1,91 @@
+@model Models.ViewModels.ReatribuirUsuarioViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Reatribuir usuário";
+    var gruposJson = JsonSerializer.Serialize(Model.Grupos,
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="mb-0">Reatribuir usuário a uma oficina</h1>
+    <a class="btn btn-outline-secondary" asp-action="Index">Voltar</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="ReatribuirUsuario" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="UsuarioId" class="form-label"></label>
+                    <select asp-for="UsuarioId" class="form-select" asp-items="Model.Usuarios">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Perfil" class="form-label"></label>
+                    <select asp-for="Perfil" class="form-select" asp-items="Model.Perfis"></select>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-3">
+                <div class="col-md-6">
+                    <label asp-for="GrupoId" class="form-label"></label>
+                    <select asp-for="GrupoId" class="form-select" id="grupoSelect" asp-items="Model.Grupos.Select(g => new SelectListItem(g.GrupoNome, g.GrupoId.ToString(), g.GrupoId == Model.GrupoId))">
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="OficinaId" class="form-label"></label>
+                    <select asp-for="OficinaId" class="form-select" id="oficinaSelect">
+                        <option value="">Selecione uma oficina</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                Ao confirmar, todos os vínculos anteriores do usuário com outras oficinas serão removidos e substituídos pela seleção acima.
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Salvar vinculação</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        (function () {
+            const grupos = @Html.Raw(gruposJson);
+            const grupoSelect = document.getElementById('grupoSelect');
+            const oficinaSelect = document.getElementById('oficinaSelect');
+
+            function atualizarOficinas() {
+                const grupoId = parseInt(grupoSelect.value ?? '', 10);
+                oficinaSelect.innerHTML = '<option value="">Selecione uma oficina</option>';
+                if (!grupoId) return;
+                const grupo = grupos.find(g => g.grupoId === grupoId);
+                if (!grupo || !grupo.oficinas) return;
+
+                grupo.oficinas.forEach(oficina => {
+                    const opt = document.createElement('option');
+                    opt.value = oficina.oficinaId;
+                    opt.textContent = oficina.nome;
+                    if (oficina.oficinaId === @Model.OficinaId) {
+                        opt.selected = true;
+                    }
+                    oficinaSelect.appendChild(opt);
+                });
+            }
+
+            grupoSelect?.addEventListener('change', () => {
+                atualizarOficinas();
+            });
+
+            atualizarOficinas();
+        })();
+    </script>
+}

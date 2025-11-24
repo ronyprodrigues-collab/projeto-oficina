@@ -26,6 +26,8 @@ namespace Models
         public decimal ValorTotal { get; set; }
         public string? Origem { get; set; }
         public string? Observacao { get; set; }
+        public FinanceiroFormaPagamento FormaPagamento { get; set; } = FinanceiroFormaPagamento.Dinheiro;
+        public int QuantidadeParcelas { get; set; } = 1;
 
         public ICollection<LancamentoParcela> Parcelas { get; set; } = new List<LancamentoParcela>();
 

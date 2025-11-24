@@ -18,6 +18,7 @@ namespace Models.ViewModels
 
         [Required, DataType(DataType.Password), Compare("Senha")] 
         public string ConfirmarSenha { get; set; } = string.Empty;
+
+        public string? Token { get; set; }
     }
 }
-

@@ -43,11 +43,108 @@ namespace projetos.Controllers
 
             var grupo = await _context.Grupos
                 .Include(g => g.Oficinas)
+                    .ThenInclude(o => o.AdminProprietario)
+                .Include(g => g.Administrador)
                 .FirstOrDefaultAsync(g => g.Id == id && g.DiretorId == user.Id);
 
             if (grupo == null) return NotFound();
 
+            await PopularAdminsAsync(grupo.AdministradorId);
             return View(grupo);
+        }
+
+        public async Task<IActionResult> CriarAdministrador(int grupoId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            var grupo = await _context.Grupos.FirstOrDefaultAsync(g => g.Id == grupoId && g.DiretorId == user.Id);
+            if (grupo == null) return NotFound();
+
+            var vm = new CriarAdministradorViewModel
+            {
+                GrupoId = grupo.Id,
+                GrupoNome = grupo.Nome
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CriarAdministrador(CriarAdministradorViewModel model)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            var grupo = await _context.Grupos.FirstOrDefaultAsync(g => g.Id == model.GrupoId && g.DiretorId == user.Id);
+            if (grupo == null) return NotFound();
+
+            if (!ModelState.IsValid)
+            {
+                model.GrupoNome = grupo.Nome;
+                return View(model);
+            }
+
+            var email = model.Email.Trim();
+            var novoAdmin = new ApplicationUser
+            {
+                Email = email,
+                UserName = email,
+                NomeCompleto = model.NomeCompleto?.Trim() ?? string.Empty,
+                Cargo = string.IsNullOrWhiteSpace(model.Cargo) ? "Administrador" : model.Cargo.Trim(),
+                EmailConfirmed = true
+            };
+
+            var createResult = await _userManager.CreateAsync(novoAdmin, model.Senha);
+            if (!createResult.Succeeded)
+            {
+                foreach (var error in createResult.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                model.GrupoNome = grupo.Nome;
+                return View(model);
+            }
+
+            await _userManager.AddToRoleAsync(novoAdmin, "Admin");
+
+            grupo.AdministradorId = novoAdmin.Id;
+            await _context.SaveChangesAsync();
+
+            TempData["Msg"] = $"Administrador '{ObterNomeExibicao(novoAdmin)}' criado para o grupo.";
+            return RedirectToAction(nameof(DetalhesGrupo), new { id = grupo.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DefinirAdministrador(int grupoId, string? adminId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            var grupo = await _context.Grupos.FirstOrDefaultAsync(g => g.Id == grupoId && g.DiretorId == user.Id);
+            if (grupo == null) return NotFound();
+
+            ApplicationUser? adminSelecionado = null;
+            if (!string.IsNullOrEmpty(adminId))
+            {
+                adminSelecionado = await _userManager.FindByIdAsync(adminId);
+                if (adminSelecionado == null || !await _userManager.IsInRoleAsync(adminSelecionado, "Admin"))
+                {
+                    TempData["Error"] = "Administrador inválido.";
+                    return RedirectToAction(nameof(DetalhesGrupo), new { id = grupo.Id });
+                }
+            }
+
+            grupo.AdministradorId = adminSelecionado?.Id;
+            await _context.SaveChangesAsync();
+
+            TempData["Msg"] = adminSelecionado == null
+                ? "Administrador removido do grupo."
+                : $"Administrador {ObterNomeExibicao(adminSelecionado)} vinculado ao grupo.";
+
+            return RedirectToAction(nameof(DetalhesGrupo), new { id = grupo.Id });
         }
 
         public async Task<IActionResult> CriarOficina(int grupoId)
@@ -61,10 +158,11 @@ namespace projetos.Controllers
             var vm = new CriarOficinaViewModel
             {
                 GrupoId = grupo.Id,
-                GrupoNome = grupo.Nome
+                GrupoNome = grupo.Nome,
+                AdminId = grupo.AdministradorId
             };
 
-            await PopularAdminsAsync();
+            await PopularAdminsAsync(vm.AdminId);
             return View(vm);
         }
 

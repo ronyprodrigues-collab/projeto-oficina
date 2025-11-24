@@ -38,6 +38,7 @@
             </td>
             <td>
                 <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Editar</a>
+                <a class="btn btn-sm btn-outline-primary ms-1" asp-controller="Oficinas" asp-action="Nova" asp-route-grupoId="@item.Id">Nova oficina</a>
             </td>
         </tr>
     }

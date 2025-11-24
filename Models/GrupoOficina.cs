@@ -13,6 +13,8 @@ namespace Models
         [System.ComponentModel.DataAnnotations.Required]
         public string DiretorId { get; set; } = string.Empty;
         public ApplicationUser Diretor { get; set; } = null!;
+        public string? AdministradorId { get; set; }
+        public ApplicationUser? Administrador { get; set; }
         public PlanoConta Plano { get; set; } = PlanoConta.Basico;
         public string CorPrimaria { get; set; } = "#0d6efd";
         public string CorSecundaria { get; set; } = "#6c757d";

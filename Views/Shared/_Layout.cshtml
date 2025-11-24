@@ -6,21 +6,24 @@
 @inject Services.IOficinaContext OficinaContext
 
 @{
-    var appName = "Oficina";
-    var currentUser = SignInManager.IsSignedIn(User) ? await UserManager.GetUserAsync(User) : null;
-    var displayName = currentUser?.NomeCompleto ?? User?.Identity?.Name ?? "Convidado";
-    bool isAuthenticated = User?.Identity?.IsAuthenticated == true && SignInManager.IsSignedIn(User ?? new System.Security.Claims.ClaimsPrincipal());
-    bool isAdminOrSupervisor = User.IsInRole("Admin") || User.IsInRole("Supervisor");
-    bool isMecanico = User.IsInRole("Mecanico");
-    bool isSuporte = User.IsInRole("SuporteTecnico");
-    bool isDiretor = User.IsInRole("Diretor");
+    const string defaultBrandName = "Controle de Oficina";
+    var appName = defaultBrandName;
+    var userPrincipal = User ?? new System.Security.Claims.ClaimsPrincipal();
+    bool signedIn = SignInManager.IsSignedIn(userPrincipal);
+    var currentUser = signedIn ? await UserManager.GetUserAsync(userPrincipal) : null;
+    var displayName = currentUser?.NomeCompleto ?? userPrincipal.Identity?.Name ?? "Convidado";
+    bool isAuthenticated = signedIn;
+    bool isAdmin = userPrincipal.IsInRole("Admin");
+    bool isAdminOrSupervisor = isAdmin || userPrincipal.IsInRole("Supervisor");
+    bool isMecanico = userPrincipal.IsInRole("Mecanico");
+    bool isSuporte = userPrincipal.IsInRole("SuporteTecnico");
+    bool isDiretor = userPrincipal.IsInRole("Diretor");
     var controllerName = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     bool isEstoqueSection = new[] { "Estoque", "MovimentacaoEstoque", "Peca" }
         .Contains(controllerName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
     bool isPainelPage = string.Equals(controllerName, "Painel", System.StringComparison.OrdinalIgnoreCase);
-
     var cfg = await ConfigService.GetAsync();
-    if (!string.IsNullOrWhiteSpace(cfg?.NomeOficina)) { appName = cfg.NomeOficina; }
+    var configuredAppName = !string.IsNullOrWhiteSpace(cfg?.NomeOficina) ? cfg!.NomeOficina! : defaultBrandName;
     string PlanoLabel(PlanoConta plano) => plano switch
     {
         PlanoConta.Basico => "Básico",
@@ -36,14 +39,50 @@
     var planoAtual = oficinaAtual?.Plano ?? cfg?.PlanoAtual ?? PlanoConta.Basico;
     bool planoTemEstoque = planoAtual >= PlanoConta.Pro;
     bool planoTemFinanceiro = planoAtual >= PlanoConta.Plus;
-    var nomeOficinaAtual = oficinaAtual?.Nome ?? "Nenhuma oficina selecionada";
+    var nomeOficinaSelecionada = oficinaAtual?.Nome;
     var grupoAtual = oficinaAtual?.Grupo?.Nome;
+    bool possuiOficinaSelecionada = oficinaAtual != null;
+    var nomeOficinaAtual = nomeOficinaSelecionada ?? "Nenhuma oficina selecionada";
+    appName = possuiOficinaSelecionada
+        ? (nomeOficinaSelecionada ?? configuredAppName)
+        : defaultBrandName;
+    var brandLabel = defaultBrandName;
+    if (possuiOficinaSelecionada)
+    {
+        if (!string.IsNullOrWhiteSpace(grupoAtual) && !string.IsNullOrWhiteSpace(nomeOficinaSelecionada))
+        {
+            brandLabel = $"{grupoAtual} · {nomeOficinaSelecionada}";
+        }
+        else if (!string.IsNullOrWhiteSpace(grupoAtual))
+        {
+            brandLabel = grupoAtual!;
+        }
+        else if (!string.IsNullOrWhiteSpace(nomeOficinaSelecionada))
+        {
+            brandLabel = nomeOficinaSelecionada!;
+        }
+        else
+        {
+            brandLabel = configuredAppName;
+        }
+    }
     string corPrimariaAtual = !string.IsNullOrWhiteSpace(oficinaAtual?.Grupo?.CorPrimaria)
         ? oficinaAtual!.Grupo!.CorPrimaria
         : (!string.IsNullOrWhiteSpace(cfg?.CorPrimaria) ? cfg!.CorPrimaria! : "#0d6efd");
     string corSecundariaAtual = !string.IsNullOrWhiteSpace(oficinaAtual?.Grupo?.CorSecundaria)
         ? oficinaAtual!.Grupo!.CorSecundaria
         : (!string.IsNullOrWhiteSpace(cfg?.CorSecundaria) ? cfg!.CorSecundaria! : "#6c757d");
+    var viewOverridePrimary = ViewContext?.ViewData?["ThemePrimaryOverride"] as string;
+    var viewOverrideSecondary = ViewContext?.ViewData?["ThemeSecondaryOverride"] as string;
+    if (!string.IsNullOrWhiteSpace(viewOverridePrimary))
+    {
+        corPrimariaAtual = viewOverridePrimary!;
+    }
+    if (!string.IsNullOrWhiteSpace(viewOverrideSecondary))
+    {
+        corSecundariaAtual = viewOverrideSecondary!;
+    }
+    bool podeVerFinanceiro = isAdmin && planoTemFinanceiro;
 }
 
 <!DOCTYPE html>
@@ -112,7 +151,10 @@
         .layout { display: flex; min-height: calc(100vh - 56px); }
         .sidebar {
             width: 260px;
-            background-color: var(--ofc-sidebar-bg);
+            background: linear-gradient(180deg,
+                rgba(var(--ofc-primary-rgb), .16) 0%,
+                rgba(var(--ofc-primary-rgb), .08) 35%,
+                var(--ofc-sidebar-bg) 100%);
             border-right: 1px solid var(--ofc-border);
             transition: margin-left .2s ease-in-out;
         }
@@ -223,10 +265,15 @@
     </style>
     @* Override com cores do banco *@
     <style>
-        :root {
+        :root,
+        [data-theme="light"],
+        [data-theme="dark"] {
             --ofc-primary: @corPrimariaAtual;
             --ofc-secondary: @corSecundariaAtual;
             --ofc-navbar-bg: @corPrimariaAtual;
+            --bs-primary: @corPrimariaAtual;
+            --bs-link-color: @corPrimariaAtual;
+            --bs-link-hover-color: @corPrimariaAtual;
         }
     </style>
 
@@ -265,14 +312,14 @@
                 {
                     <a class="navbar-brand d-flex align-items-center" asp-controller="Painel" asp-action="Index">
                         <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
-                        <span>@appName</span>
+                        <span>@brandLabel</span>
                     </a>
                 }
                 else
                 {
                     <a class="navbar-brand d-flex align-items-center" asp-controller="Account" asp-action="Login">
                         <img class="brand-logo me-2" src="@Url.Content(string.IsNullOrWhiteSpace(cfg?.LogoPath) ? "/logo.png" : cfg!.LogoPath)" asp-append-version="true" alt="Logo" onerror="this.style.display='none'">
-                        <span>@appName</span>
+                        <span>@brandLabel</span>
                     </a>
                 }
             </div>
@@ -342,10 +389,24 @@
                         {
                             <span class="nav-link disabled text-muted" title="Disponível no Plano Pro">Estoque (Plano Pro)</span>
                         }
-                        @if (User.IsInRole("Admin"))
+                        @if (isAdmin)
                         {
                             <a class="nav-link" asp-controller="AdminOficinas" asp-action="Index">Minhas Oficinas</a>
                             <a class="nav-link" asp-controller="Funcionarios" asp-action="Index">Funcionários</a>
+                            <a class="nav-link" asp-controller="ContasFinanceiras" asp-action="Index">Contas financeiras</a>
+                        }
+                        if (podeVerFinanceiro)
+                        {
+                            <a class="nav-link" asp-controller="Financeiro" asp-action="Index">Financeiro</a>
+                            <a class="nav-link ms-4" asp-controller="LancamentosFinanceiros" asp-action="Index">Lançamentos</a>
+                        }
+                        else if (isAdmin)
+                        {
+                            <span class="nav-link disabled text-muted" title="Disponível no Plano Plus">Financeiro (Plano Plus)</span>
+                        }
+                        if (isAdmin || isSuporte || isDiretor)
+                        {
+                            <a class="nav-link" asp-controller="Convites" asp-action="Index">Convites</a>
                         }
                         <a class="nav-link" asp-controller="Suporte" asp-action="Index">Suporte</a>
                     }

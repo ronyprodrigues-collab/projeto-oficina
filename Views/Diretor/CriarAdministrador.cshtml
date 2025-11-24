@@ -1,0 +1,52 @@
+@model Models.ViewModels.CriarAdministradorViewModel
+@{
+    ViewData["Title"] = "Novo administrador";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h1 class="mb-0">Novo administrador - @Model.GrupoNome</h1>
+    <a asp-action="DetalhesGrupo" asp-route-id="@Model.GrupoId" class="btn btn-outline-secondary">Voltar</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form asp-action="CriarAdministrador" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="GrupoId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="col-md-6">
+                <label asp-for="NomeCompleto" class="form-label"></label>
+                <input asp-for="NomeCompleto" class="form-control" />
+                <span asp-validation-for="NomeCompleto" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Cargo" class="form-label"></label>
+                <input asp-for="Cargo" class="form-control" />
+                <span asp-validation-for="Cargo" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Senha" class="form-label"></label>
+                <input asp-for="Senha" class="form-control" type="password" autocomplete="new-password" />
+                <span asp-validation-for="Senha" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ConfirmarSenha" class="form-label"></label>
+                <input asp-for="ConfirmarSenha" class="form-control" type="password" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmarSenha" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-success">Cadastrar administrador</button>
+                <a asp-action="DetalhesGrupo" asp-route-id="@Model.GrupoId" class="btn btn-link text-decoration-none">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

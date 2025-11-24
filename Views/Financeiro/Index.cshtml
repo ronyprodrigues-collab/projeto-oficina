@@ -1,0 +1,218 @@
+@model Models.ViewModels.FinanceiroDashboardViewModel
+@{
+    ViewData["Title"] = "Painel Financeiro";
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="mb-0">Financeiro - @ViewBag.OficinaNome</h1>
+        <div class="btn-group">
+            <a class="btn btn-outline-light" asp-controller="LancamentosFinanceiros" asp-action="Index">Ver lançamentos</a>
+            <a class="btn btn-primary" asp-controller="LancamentosFinanceiros" asp-action="Create">Novo lançamento</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="text-muted small">Saldo total</div>
+                    <div class="display-6">@Model.SaldoTotal.ToString("C")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="text-muted small">À receber (próximos)</div>
+                    <div class="display-6 text-success">@Model.TotalReceber.ToString("C")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="text-muted small">À pagar (próximos)</div>
+                    <div class="display-6 text-danger">@Model.TotalPagar.ToString("C")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="text-muted small">Contas monitoradas</div>
+                    <div class="display-6">@Model.Contas.Count</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Contas financeiras</span>
+            <small class="text-muted">Saldo considerando parcelas baixadas</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Conta</th>
+                        <th>Tipo</th>
+                        <th class="text-end">Saldo inicial</th>
+                        <th class="text-end">Entradas</th>
+                        <th class="text-end">Saídas</th>
+                        <th class="text-end">Saldo atual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var conta in Model.Contas)
+                    {
+                        <tr>
+                            <td>@conta.Nome</td>
+                            <td>@conta.Tipo</td>
+                            <td class="text-end">@conta.SaldoInicial.ToString("C")</td>
+                            <td class="text-end text-success">+@conta.Entradas.ToString("C")</td>
+                            <td class="text-end text-danger">-@conta.Saidas.ToString("C")</td>
+                            <td class="text-end fw-semibold">@conta.SaldoAtual.ToString("C")</td>
+                        </tr>
+                    }
+                    @if (!Model.Contas.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Nenhuma conta cadastrada.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between">
+                    <span>À receber</span>
+                    <a asp-controller="LancamentosFinanceiros" asp-action="Index" asp-route-tipo="Receita" class="small">Ver todos</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Descrição</th>
+                                <th class="text-end">Vencimento</th>
+                                <th class="text-end">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.PendentesReceber)
+                            {
+                                <tr class="@(item.EmAtraso ? "table-danger" : string.Empty)">
+                                    <td>
+                                        <div class="fw-semibold">@item.Descricao</div>
+                                        <small class="text-muted">@item.Categoria</small>
+                                    </td>
+                                    <td class="text-end">@item.DataVencimento.ToString("dd/MM")</td>
+                                    <td class="text-end">@item.Valor.ToString("C")</td>
+                                </tr>
+                            }
+                            @if (!Model.PendentesReceber.Any())
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">Sem recebimentos próximos.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between">
+                    <span>À pagar</span>
+                    <a asp-controller="LancamentosFinanceiros" asp-action="Index" asp-route-tipo="Despesa" class="small">Ver todos</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Descrição</th>
+                                <th class="text-end">Vencimento</th>
+                                <th class="text-end">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.PendentesPagar)
+                            {
+                                <tr class="@(item.EmAtraso ? "table-danger" : string.Empty)">
+                                    <td>
+                                        <div class="fw-semibold">@item.Descricao</div>
+                                        <small class="text-muted">@item.Categoria</small>
+                                    </td>
+                                    <td class="text-end">@item.DataVencimento.ToString("dd/MM")</td>
+                                    <td class="text-end">@item.Valor.ToString("C")</td>
+                                </tr>
+                            }
+                            @if (!Model.PendentesPagar.Any())
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">Sem pagamentos próximos.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between">
+                    <span>OS finalizadas (avisos)</span>
+                    <small class="text-muted">Lembrete para o administrador</small>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>OS</th>
+                                <th>Cliente</th>
+                                <th class="text-end">Valor</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var os in Model.OsRecentes)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">#@os.OrdemServicoId</div>
+                                        <small class="text-muted">@os.DataConclusao?.ToString("dd/MM")</small>
+                                    </td>
+                                    <td>@os.Cliente</td>
+                                    <td class="text-end">@os.ValorTotal.ToString("C")</td>
+                                    <td>
+                                        @if (os.LancamentoGerado)
+                                        {
+                                            <span class="badge bg-success">Recebimento lançado</span>
+                                            <div class="small text-muted">@os.FormaPagamento (@(os.ContaDestino ?? "Conta padrão"))</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Aguardando geração</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (!Model.OsRecentes.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Nenhuma OS finalizada recentemente.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

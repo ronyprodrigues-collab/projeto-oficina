@@ -18,6 +18,7 @@ namespace Models
 
         public ICollection<LancamentoFinanceiro> LancamentosPadrao { get; set; } = new List<LancamentoFinanceiro>();
         public ICollection<LancamentoParcela> ParcelasPagas { get; set; } = new List<LancamentoParcela>();
+        public ICollection<OrdemServico> OrdensRecebimento { get; set; } = new List<OrdemServico>();
 
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }

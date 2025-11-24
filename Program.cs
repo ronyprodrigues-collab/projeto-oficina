@@ -36,7 +36,7 @@ builder.Services.AddDbContext<OficinaDbContext>(options =>
 });
 
 // --------------------------------------------
-// 🔥 2. IDENTITY
+// 🔥 2. IDENTIDADE
 // --------------------------------------------
 builder.Services
     .AddDefaultIdentity<ApplicationUser>(options =>
@@ -60,6 +60,7 @@ builder.Services.AddControllersWithViews(options =>
 builder.Services.AddScoped<IConfiguracoesService, ConfiguracoesService>();
 builder.Services.AddScoped<IEstoqueService, EstoqueService>();
 builder.Services.AddScoped<IOficinaContext, OficinaContext>();
+builder.Services.AddScoped<IFinanceiroService, FinanceiroService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -95,7 +96,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 // --------------------------------------------
-// Middleware
+// Pipeline de middleware
 // --------------------------------------------
 if (app.Environment.IsDevelopment())
 {
@@ -121,6 +122,7 @@ app.Use(async (context, next) =>
             "/oficinas/limpar",
             "/account",
             "/suporte",
+            "/grupos",
             "/identity"
         };
 
@@ -143,7 +145,7 @@ app.Use(async (context, next) =>
 
 app.UseAuthorization();
 
-// MVC Route
+// Rotas MVC
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
@@ -166,7 +168,7 @@ using (var scope = app.Services.CreateScope())
 // 🔥 8. ABRIR NAVEGADOR AUTOMATICAMENTE
 //     → Agora ABRE NA PORTA CORRETA!
 // --------------------------------------------
-Task.Run(async () =>
+_ = Task.Run(async () =>
 {
     await Task.Delay(1500);
 

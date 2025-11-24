@@ -1,8 +1,10 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Models;
 using Models.ViewModels;
 using Services;
@@ -14,12 +16,14 @@ namespace projetos.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IOficinaContext _oficinaContext;
+        private readonly OficinaDbContext _context;
 
-        public AccountController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IOficinaContext oficinaContext)
+        public AccountController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IOficinaContext oficinaContext, OficinaDbContext context)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _oficinaContext = oficinaContext;
+            _context = context;
         }
 
         [AllowAnonymous]
@@ -74,9 +78,9 @@ namespace projetos.Controllers
 
         [AllowAnonymous]
         [HttpGet]
-        public IActionResult Register()
+        public IActionResult Register(string? token = null)
         {
-            return View(new RegisterViewModel());
+            return View(new RegisterViewModel { Token = token });
         }
 
         [AllowAnonymous]
@@ -99,7 +103,18 @@ namespace projetos.Controllers
             var result = await _userManager.CreateAsync(user, model.Senha);
             if (result.Succeeded)
             {
-                // Por padrão, nenhum papel específico; ajuste conforme necessidade
+                if (!string.IsNullOrWhiteSpace(model.Token))
+                {
+                    var convite = await _context.Convites.FirstOrDefaultAsync(c => c.Token == model.Token && !c.Usado);
+                    if (convite != null)
+                    {
+                        await _userManager.AddToRoleAsync(user, convite.PerfilDestino);
+                        user.PercentualComissao = convite.PercentualComissao;
+                        convite.Usado = true;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 await _signInManager.SignInAsync(user, isPersistent: true);
                 _oficinaContext.Clear();
                 var url = Url.Action("Index", "Painel") ?? "/Painel";

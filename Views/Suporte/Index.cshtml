@@ -1,9 +1,13 @@
 @model Models.ViewModels.SuporteConfiguracaoViewModel
+@using Infrastructure.Theming
 @{
     ViewData["Title"] = "Configurações da Oficina";
     var oficina = Model.Oficina;
-    var coresPreviewPrimaria = oficina?.CorPrimaria ?? Model.Defaults?.CorPrimaria ?? "#0d6efd";
-    var coresPreviewSecundaria = oficina?.CorSecundaria ?? Model.Defaults?.CorSecundaria ?? "#6c757d";
+    var grupoAtual = Model.GrupoSelecionado ?? Model.Grupos.FirstOrDefault(g => g.Id == Model.GrupoSelecionadoId);
+    var temaAtual = Model.TemaAtual ?? ThemePalettes.FromColors(grupoAtual?.CorPrimaria, grupoAtual?.CorSecundaria);
+    var coresPreviewPrimaria = temaAtual.PrimaryHex;
+    var coresPreviewSecundaria = temaAtual.SecondaryHex;
+    var canGerenciarTema = User.IsInRole("SuporteTecnico") || User.IsInRole("Admin") || User.IsInRole("Diretor");
     string PlanoLabel(Models.PlanoConta plano) => plano switch
     {
         Models.PlanoConta.Basico => "Plano Básico",
@@ -13,7 +17,48 @@
     };
 }
 
-<h1 class="mb-4">Configurações da Oficina</h1>
+<style>
+    .theme-option {
+        border: 1px solid var(--ofc-border);
+        border-radius: .75rem;
+        padding: 1rem;
+        display: block;
+        cursor: pointer;
+        height: 100%;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    .theme-option input[type="radio"] {
+        display: none;
+    }
+    .theme-option.active {
+        border-color: var(--ofc-primary);
+        box-shadow: 0 0 0 2px rgba(var(--ofc-primary-rgb), .25);
+    }
+    .theme-option .theme-swatches {
+        display: flex;
+        gap: .5rem;
+    }
+    .theme-option .swatch {
+        width: 48px;
+        height: 32px;
+        border-radius: .5rem;
+        border: 1px solid rgba(0,0,0,.1);
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <h1 class="mb-0">Configurações da Oficina</h1>
+    <div class="btn-group">
+        @if (User.IsInRole("SuporteTecnico"))
+        {
+            <a asp-action="UsuariosPendentes" class="btn btn-outline-primary">Usuários pendentes</a>
+            <a asp-action="ReatribuirUsuario" class="btn btn-outline-primary">Reatribuir usuários</a>
+            <a asp-controller="Grupos" asp-action="Create" class="btn btn-success">
+                Criar grupo de oficinas
+            </a>
+        }
+    </div>
+</div>
 
 <form method="get" class="row g-3 mb-4">
     <div class="col-md-4">
@@ -57,10 +102,19 @@
 {
     <div class="alert alert-warning">Selecione um grupo e uma oficina para editar as configurações.</div>
 }
-else
-{
-    <div class="row g-4">
-        <div class="col-lg-6">
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        @if (oficina == null)
+        {
+            <div class="card h-100">
+                <div class="card-body">
+                    <p class="text-muted mb-0">Escolha uma oficina para alterar logo ou renomear.</p>
+                </div>
+            </div>
+        }
+        else
+        {
             <div class="card">
                 <div class="card-header">Identidade visual</div>
                 <div class="card-body">
@@ -86,38 +140,75 @@ else
                     </form>
                 </div>
             </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">Cores do tema</div>
+            <div class="card mt-3">
+                <div class="card-header">Nome da oficina</div>
                 <div class="card-body">
-                    <form asp-action="AlterarCores" method="post">
+                    <form asp-action="AtualizarOficina" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="grupoId" value="@Model.GrupoSelecionadoId" />
+                        <input type="hidden" name="oficinaId" value="@Model.OficinaSelecionadaId" />
+                        <div class="mb-3">
+                            <label class="form-label">Nome da Oficina</label>
+                            <input type="text" name="nomeOficina" class="form-control" value="@oficina?.Nome" />
+                        </div>
+                        <button class="btn btn-success" type="submit">Salvar nome</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Tema do grupo</span>
+                @if (grupoAtual != null)
+                {
+                    <span class="badge bg-light text-dark">@grupoAtual.Nome</span>
+                }
+            </div>
+            <div class="card-body">
+                @if (canGerenciarTema)
+                {
+                    <form asp-action="AlterarTemaGrupo" method="post">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="grupoId" value="@Model.GrupoSelecionadoId" />
                         <input type="hidden" name="oficinaId" value="@Model.OficinaSelecionadaId" />
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Cor Primária</label>
-                                <input type="color" name="corPrimaria" class="form-control form-control-color" value="@oficina.CorPrimaria" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Cor Secundária</label>
-                                <input type="color" name="corSecundaria" class="form-control form-control-color" value="@oficina.CorSecundaria" />
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Nome da Oficina</label>
-                                <input type="text" name="nomeOficina" class="form-control" value="@oficina.Nome" />
-                            </div>
+                            @foreach (var palette in Model.Paletas)
+                            {
+                                var isActive = string.Equals(palette.PrimaryHex, temaAtual.PrimaryHex, System.StringComparison.OrdinalIgnoreCase)
+                                               && string.Equals(palette.SecondaryHex, temaAtual.SecondaryHex, System.StringComparison.OrdinalIgnoreCase);
+                                <div class="col-sm-6">
+                                    <label class="theme-option @(isActive ? "active" : string.Empty)">
+                                        <input type="radio" name="paletteKey" value="@palette.Key" @(isActive ? "checked" : null) />
+                                        <span class="fw-semibold">@palette.Name</span>
+                                        <small class="text-muted d-block">@palette.Description</small>
+                                        <div class="theme-swatches mt-2">
+                                            <span class="swatch" style="background:@palette.PrimaryHex"></span>
+                                            <span class="swatch" style="background:@palette.SecondaryHex"></span>
+                                        </div>
+                                    </label>
+                                </div>
+                            }
                         </div>
-                        <div class="mt-3">
-                            <button class="btn btn-success" type="submit">Salvar cores</button>
+                        <div class="mt-3 text-end">
+                            <button class="btn btn-success" type="submit">Aplicar tema</button>
                         </div>
                     </form>
-                </div>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-0">
+                        Somente Diretores, Suporte Técnico ou Administradores podem alterar o tema do grupo.
+                    </div>
+                }
             </div>
         </div>
     </div>
+</div>
 
+@if (oficina != null)
+{
     <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Plano da oficina</span>
@@ -191,3 +282,19 @@ else
         </form>
     </div>
 </div>
+
+@if (canGerenciarTema)
+{
+    @section Scripts {
+        <script>
+            document.querySelectorAll('.theme-option input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    document.querySelectorAll('.theme-option').forEach(opt => opt.classList.remove('active'));
+                    if (radio.checked) {
+                        radio.closest('.theme-option')?.classList.add('active');
+                    }
+                });
+            });
+        </script>
+    }
+}

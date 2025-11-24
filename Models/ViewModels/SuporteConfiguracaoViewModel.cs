@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Infrastructure.Theming;
 using Models;
 
 namespace Models.ViewModels
@@ -11,5 +12,8 @@ namespace Models.ViewModels
         public int OficinaSelecionadaId { get; set; }
         public Oficina? Oficina { get; set; }
         public Configuracoes? Defaults { get; set; }
+        public GrupoOficina? GrupoSelecionado { get; set; }
+        public IReadOnlyList<ThemePalette> Paletas { get; set; } = ThemePalettes.All;
+        public ThemePalette TemaAtual { get; set; } = ThemePalettes.Default;
     }
 }

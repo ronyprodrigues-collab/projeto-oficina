@@ -1,0 +1,149 @@
+@model IEnumerable<Models.ViewModels.LancamentoParcelaListItemViewModel>
+@using System
+@using Models
+@{
+    ViewData["Title"] = "Lançamentos Financeiros";
+    var tipo = ViewBag.Tipo as FinanceiroTipoLancamento?;
+    var situacao = ViewBag.Situacao as FinanceiroSituacaoParcela?;
+    bool atrasados = ViewBag.Atrasados ?? false;
+    var contasPagamento = (IEnumerable<dynamic>)(ViewBag.ContasPagamento ?? Array.Empty<dynamic>());
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h1 class="mb-0">Lançamentos Financeiros</h1>
+        <div>
+            <a class="btn btn-outline-light me-2" asp-controller="Financeiro" asp-action="Index">Painel</a>
+            <a class="btn btn-primary" asp-action="Create">Novo lançamento</a>
+        </div>
+    </div>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" name="tipo" onchange="this.form.submit()">
+                <option value="">Todos</option>
+                <option value="Receita" selected="@(tipo == FinanceiroTipoLancamento.Receita ? "selected" : null)">Receita</option>
+                <option value="Despesa" selected="@(tipo == FinanceiroTipoLancamento.Despesa ? "selected" : null)">Despesa</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Situação</label>
+            <select class="form-select" name="situacao" onchange="this.form.submit()">
+                <option value="">Todas</option>
+                @foreach (FinanceiroSituacaoParcela item in Enum.GetValues(typeof(FinanceiroSituacaoParcela)))
+                {
+                    <option value="@item" selected="@(situacao == item ? "selected" : null)">@item</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="atrasados" name="apenasAtrasados" value="true" @(atrasados ? "checked" : null) onchange="this.form.submit()" />
+                <label class="form-check-label" for="atrasados">Somente atrasados</label>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-end justify-content-end">
+            <button class="btn btn-outline-secondary" type="submit">Filtrar</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-end">Vencimento</th>
+                    <th class="text-end">Valor</th>
+                    <th>Situação</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    var linhaClasse = item.Situacao == FinanceiroSituacaoParcela.Pendente && item.DataVencimento < DateTime.Today
+                        ? "table-danger" : string.Empty;
+                    <tr class="@linhaClasse">
+                        <td>@item.Tipo</td>
+                        <td>
+                            <div class="fw-semibold">@item.Descricao</div>
+                            <small class="text-muted">@item.NumeroDocumento ?? item.ParceiroNome</small>
+                        </td>
+                        <td>@item.Categoria</td>
+                        <td class="text-end">@item.DataVencimento.ToString("dd/MM/yyyy")</td>
+                        <td class="text-end">@item.Valor.ToString("C")</td>
+                        <td>
+                            <span class="badge @(item.Situacao == FinanceiroSituacaoParcela.Pago ? "bg-success" : item.Situacao == FinanceiroSituacaoParcela.Cancelado ? "bg-secondary" : "bg-warning text-dark")">
+                                @item.Situacao
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            @if (item.Situacao == FinanceiroSituacaoParcela.Pendente)
+                            {
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalBaixa" data-parcela="@item.ParcelaId" data-valor="@item.Valor.ToString("C")" data-descricao="@item.Descricao">Baixar</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Nenhum lançamento encontrado.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalBaixa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Baixar parcela</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-action="BaixarParcela">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <input type="hidden" name="parcelaId" id="parcelaId" />
+                    <div class="mb-3">
+                        <label class="form-label">Conta pagamento</label>
+                        <select class="form-select" name="contaPagamentoId" required>
+                            <option value="">Selecione</option>
+                            @foreach (var conta in contasPagamento)
+                            {
+                                <option value="@conta.Id">@conta.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data pagamento</label>
+                        <input type="date" class="form-control" name="dataPagamento" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="alert alert-info" id="descricaoParcela"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar baixa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('modalBaixa')?.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const parcelaId = button?.getAttribute('data-parcela');
+            const descricao = button?.getAttribute('data-descricao');
+            const valor = button?.getAttribute('data-valor');
+            this.querySelector('#parcelaId').value = parcelaId ?? '';
+            this.querySelector('#descricaoParcela').innerText = `${descricao ?? ''} - ${valor ?? ''}`;
+        });
+    </script>
+}

@@ -1,0 +1,64 @@
+@model Models.ViewModels.NovaOficinaViewModel
+@{
+    ViewData["Title"] = "Nova oficina";
+}
+
+<h1>Nova oficina</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="Nova" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="GrupoId" class="form-label">Grupo</label>
+                <select asp-for="GrupoId" class="form-select" asp-items="Model.Grupos">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Nome" class="form-label">Nome</label>
+                <input asp-for="Nome" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Descricao" class="form-label">Descrição</label>
+                <textarea asp-for="Descricao" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="Plano" class="form-label">Plano</label>
+                    <select asp-for="Plano" class="form-select" asp-items="Html.GetEnumSelectList<Models.PlanoConta>()"></select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="CorPrimaria" class="form-label">Cor primária</label>
+                    <input asp-for="CorPrimaria" type="color" class="form-control form-control-color" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="CorSecundaria" class="form-label">Cor secundária</label>
+                    <input asp-for="CorSecundaria" type="color" class="form-control form-control-color" />
+                </div>
+            </div>
+
+            <div class="mt-3 mb-3">
+                <label asp-for="AdminId" class="form-label">Administrador responsável</label>
+                <select asp-for="AdminId" class="form-select" asp-items="Model.Admins">
+                    <option value="">Selecione...</option>
+                </select>
+                <small class="text-muted">Opcional: define o usuário admin proprietário da nova oficina.</small>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Criar oficina</button>
+                <a asp-controller="AdminOficinas" asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -27,9 +27,8 @@ namespace projetos.Controllers
         public async Task<IActionResult> Index()
         {
             var oficinaId = await ObterOficinaAtualIdAsync();
-            var veiculos = await _context.OficinasVeiculos
-                .Where(ov => ov.OficinaId == oficinaId)
-                .Select(ov => ov.Veiculo)
+            var veiculos = await _context.Veiculos
+                .Where(v => v.Oficinas.Any(o => o.OficinaId == oficinaId))
                 .Include(v => v.Cliente)
                 .Include(v => v.Oficinas)
                     .ThenInclude(o => o.Oficina)

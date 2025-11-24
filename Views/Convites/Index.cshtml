@@ -1,0 +1,78 @@
+@model IEnumerable<Models.Convite>
+@{
+    ViewData["Title"] = "Convites";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="mb-0">Convites</h1>
+    <a class="btn btn-primary" asp-action="Create">Novo convite</a>
+</div>
+
+@if (TempData["Msg"] != null)
+{
+    <div class="alert alert-success">@TempData["Msg"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Perfil</th>
+                <th>Comissão (%)</th>
+                <th>Token</th>
+                <th>Criado em</th>
+                <th>Expira em</th>
+                <th>Status</th>
+                <th class="text-end">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>@c.Email</td>
+                    <td>@c.PerfilDestino</td>
+                    <td>@c.PercentualComissao</td>
+                    <td><code>@c.Token</code></td>
+                    <td>@c.CriadoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>@(c.ExpiraEm?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                    <td>
+                        @if (c.Usado)
+                        {
+                            <span class="badge bg-success">Utilizado</span>
+                        }
+                        else if (c.ExpiraEm.HasValue && c.ExpiraEm.Value < DateTime.UtcNow)
+                        {
+                            <span class="badge bg-secondary">Expirado</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (!c.Usado)
+                        {
+                            <form asp-action="Cancelar" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@c.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="8" class="text-center text-muted">Nenhum convite criado.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

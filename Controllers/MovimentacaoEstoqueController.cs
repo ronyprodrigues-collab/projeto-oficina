@@ -18,28 +18,39 @@ namespace projetos.Controllers
     {
         private readonly OficinaDbContext _db;
         private readonly IEstoqueService _estoqueService;
+        private readonly IOficinaContext _oficinaContext;
 
-        public MovimentacaoEstoqueController(OficinaDbContext db, IEstoqueService estoqueService)
+        public MovimentacaoEstoqueController(OficinaDbContext db, IEstoqueService estoqueService, IOficinaContext oficinaContext)
         {
             _db = db;
             _estoqueService = estoqueService;
+            _oficinaContext = oficinaContext;
         }
 
         public async Task<IActionResult> Index(int? pecaId)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var query = _db.MovimentacoesEstoque
                 .Include(m => m.PecaEstoque)
                 .AsNoTracking()
+                .Where(m => m.OficinaId == oficinaId)
                 .OrderByDescending(m => m.DataMovimentacao);
 
             if (pecaId.HasValue)
             {
+                var pertence = await _db.PecaEstoques.AnyAsync(p => p.Id == pecaId.Value && p.OficinaId == oficinaId);
+                if (!pertence)
+                {
+                    return NotFound();
+                }
+
                 query = query.Where(m => m.PecaEstoqueId == pecaId.Value)
                     .OrderByDescending(m => m.DataMovimentacao);
                 ViewBag.PecaSelecionada = pecaId.Value;
             }
 
             ViewBag.Pecas = await _db.PecaEstoques.AsNoTracking()
+                .Where(p => p.OficinaId == oficinaId)
                 .OrderBy(p => p.Nome)
                 .ToListAsync();
 
@@ -49,7 +60,8 @@ namespace projetos.Controllers
 
         public async Task<IActionResult> Entrada()
         {
-            await PopularPecas();
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            await PopularPecas(oficinaId);
             return View(new MovimentacaoEntradaViewModel());
         }
 
@@ -57,9 +69,15 @@ namespace projetos.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Entrada(MovimentacaoEntradaViewModel model)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            if (!await PecaPertenceAoGrupoAsync(model.PecaEstoqueId, oficinaId))
+            {
+                ModelState.AddModelError(nameof(model.PecaEstoqueId), "Peça inválida para esta oficina.");
+            }
+
             if (!ModelState.IsValid)
             {
-                await PopularPecas();
+                await PopularPecas(oficinaId);
                 return View(model);
             }
 
@@ -72,14 +90,15 @@ namespace projetos.Controllers
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
-                await PopularPecas();
+                await PopularPecas(oficinaId);
                 return View(model);
             }
         }
 
         public async Task<IActionResult> Saida()
         {
-            await PopularPecas();
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            await PopularPecas(oficinaId);
             return View(new MovimentacaoSaidaViewModel());
         }
 
@@ -87,9 +106,15 @@ namespace projetos.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Saida(MovimentacaoSaidaViewModel model)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            if (!await PecaPertenceAoGrupoAsync(model.PecaEstoqueId, oficinaId))
+            {
+                ModelState.AddModelError(nameof(model.PecaEstoqueId), "Peça inválida para esta oficina.");
+            }
+
             if (!ModelState.IsValid)
             {
-                await PopularPecas();
+                await PopularPecas(oficinaId);
                 return View(model);
             }
 
@@ -102,16 +127,33 @@ namespace projetos.Controllers
             catch (Exception ex)
             {
                 ModelState.AddModelError(string.Empty, ex.Message);
-                await PopularPecas();
+                await PopularPecas(oficinaId);
                 return View(model);
             }
         }
 
-        private async Task PopularPecas()
+        private async Task PopularPecas(int oficinaId)
         {
             ViewBag.Pecas = await _db.PecaEstoques.AsNoTracking()
+                .Where(p => p.OficinaId == oficinaId)
                 .OrderBy(p => p.Nome)
                 .ToListAsync();
+        }
+
+        private async Task<bool> PecaPertenceAoGrupoAsync(int pecaId, int oficinaId)
+        {
+            return await _db.PecaEstoques.AnyAsync(p => p.Id == pecaId && p.OficinaId == oficinaId);
+        }
+
+        private async Task<int> ObterOficinaAtualIdAsync()
+        {
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null)
+            {
+                throw new InvalidOperationException("Nenhuma oficina selecionada.");
+            }
+
+            return oficina.Id;
         }
     }
 }

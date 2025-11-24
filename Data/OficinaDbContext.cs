@@ -30,6 +30,7 @@ namespace Data
         public DbSet<CategoriaFinanceira> CategoriasFinanceiras { get; set; } = null!;
         public DbSet<LancamentoFinanceiro> LancamentosFinanceiros { get; set; } = null!;
         public DbSet<LancamentoParcela> LancamentoParcelas { get; set; } = null!;
+        public DbSet<Convite> Convites { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +66,12 @@ namespace Data
                 .HasOne(os => os.Mecanico)
                 .WithMany()
                 .HasForeignKey(os => os.MecanicoId);
+
+            modelBuilder.Entity<OrdemServico>()
+                .HasOne(os => os.ContaRecebimento)
+                .WithMany(c => c.OrdensRecebimento)
+                .HasForeignKey(os => os.ContaRecebimentoId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<ServicoItem>()
                 .HasOne(si => si.OrdemServico)
@@ -114,6 +121,14 @@ namespace Data
             modelBuilder.Entity<ContaFinanceira>()
                 .Property(c => c.SaldoInicial)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<ApplicationUser>()
+                .Property(u => u.PercentualComissao)
+                .HasPrecision(5, 2);
+
+            modelBuilder.Entity<Oficina>()
+                .Property(o => o.FinanceiroJurosMensal)
+                .HasPrecision(5, 4);
 
             modelBuilder.Entity<LancamentoFinanceiro>()
                 .Property(l => l.ValorTotal)
@@ -169,6 +184,12 @@ namespace Data
                 .WithMany(u => u.GruposDiretor)
                 .HasForeignKey(g => g.DiretorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<GrupoOficina>()
+                .HasOne(g => g.Administrador)
+                .WithMany(u => u.GruposAdministrador)
+                .HasForeignKey(g => g.AdministradorId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Oficina>()
                 .HasIndex(o => new { o.GrupoOficinaId, o.Nome })

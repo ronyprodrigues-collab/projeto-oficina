@@ -1,0 +1,60 @@
+@model Models.ViewModels.ImportClientesViewModel
+@{
+    ViewData["Title"] = "Importar Clientes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="mb-0">Importação de clientes</h1>
+    <div class="d-flex gap-2">
+        <a asp-action="ModeloImportacao" class="btn btn-outline-secondary">Baixar modelo</a>
+        <a asp-action="Index" class="btn btn-outline-primary">Voltar</a>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <p class="mb-1">Utilize o modelo CSV para cadastrar rapidamente vários clientes deste grupo. Colunas esperadas (todas separadas por ponto e vírgula):</p>
+    <ul class="mb-0">
+        <li><strong>Nome</strong> – obrigatório</li>
+        <li><strong>Email</strong>, <strong>Telefone</strong>, <strong>CPF_CNPJ</strong> – pelo menos um entre e-mail ou CPF/CNPJ precisa ser informado</li>
+        <li><strong>TipoCliente</strong> – PF ou PJ</li>
+        <li><strong>Responsavel</strong> – opcional (para PJ)</li>
+        <li><strong>Endereço</strong>, <strong>Número</strong>, <strong>Bairro</strong>, <strong>Cidade</strong>, <strong>Estado</strong>, <strong>CEP</strong> – opcionais</li>
+        <li><strong>Observacoes</strong> – texto livre</li>
+    </ul>
+</div>
+
+<form asp-action="Import" method="post" enctype="multipart/form-data" class="card shadow-sm">
+    @Html.AntiForgeryToken()
+    <div class="card-body">
+        <div class="mb-3">
+            <label asp-for="Arquivo" class="form-label"></label>
+            <input asp-for="Arquivo" class="form-control" type="file" accept=".csv,text/csv" />
+            <span asp-validation-for="Arquivo" class="text-danger"></span>
+        </div>
+        <button type="submit" class="btn btn-success">Enviar planilha</button>
+    </div>
+</form>
+
+@if (Model.Processado)
+{
+    <div class="alert alert-success mt-4">
+        Foram importados @Model.TotalImportados cliente(s).
+    </div>
+
+    if (Model.Erros?.Any() == true)
+    {
+        <div class="alert alert-warning">
+            <h5 class="mb-2">Ocorreram @Model.Erros.Count falha(s):</h5>
+            <ul class="mb-0">
+                @foreach (var erro in Model.Erros)
+                {
+                    <li>@erro</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

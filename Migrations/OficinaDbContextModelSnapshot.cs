@@ -202,6 +202,10 @@ namespace projetos.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("longtext");
 
+                    b.Property<decimal>("PercentualComissao")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("longtext");
 
@@ -421,6 +425,43 @@ namespace projetos.Migrations
                     b.ToTable("ContasFinanceiras");
                 });
 
+            modelBuilder.Entity("Models.Convite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ExpiraEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("PercentualComissao")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("PerfilDestino")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("Usado")
+                        .HasColumnType("bit(1)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Convites");
+                });
+
             modelBuilder.Entity("Models.GrupoOficina", b =>
                 {
                     b.Property<int>("Id")
@@ -428,6 +469,9 @@ namespace projetos.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdministradorId")
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("CorPrimaria")
                         .IsRequired()
@@ -458,6 +502,8 @@ namespace projetos.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdministradorId");
 
                     b.HasIndex("DiretorId");
 
@@ -494,6 +540,9 @@ namespace projetos.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int>("FormaPagamento")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit(1)");
 
@@ -511,6 +560,9 @@ namespace projetos.Migrations
 
                     b.Property<string>("ParceiroNome")
                         .HasColumnType("longtext");
+
+                    b.Property<int>("QuantidadeParcelas")
+                        .HasColumnType("int");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("int");
@@ -666,6 +718,13 @@ namespace projetos.Migrations
                     b.Property<string>("Descricao")
                         .HasColumnType("longtext");
 
+                    b.Property<decimal>("FinanceiroJurosMensal")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
+
+                    b.Property<int>("FinanceiroPrazoSemJurosDias")
+                        .HasColumnType("int");
+
                     b.Property<int>("GrupoOficinaId")
                         .HasColumnType("int");
 
@@ -783,6 +842,9 @@ namespace projetos.Migrations
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ContaRecebimentoId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("DataAbertura")
                         .HasColumnType("datetime(6)");
 
@@ -790,6 +852,9 @@ namespace projetos.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DataPrevista")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DataPrimeiroVencimento")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -802,8 +867,20 @@ namespace projetos.Migrations
                     b.Property<bool>("EstoqueReservado")
                         .HasColumnType("bit(1)");
 
+                    b.Property<int>("FormaPagamento")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit(1)");
+
+                    b.Property<int?>("LancamentoFinanceiroComissaoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LancamentoFinanceiroCustoPecasId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LancamentoFinanceiroReceitaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("MecanicoId")
                         .HasColumnType("varchar(255)");
@@ -817,6 +894,9 @@ namespace projetos.Migrations
                     b.Property<int>("OficinaId")
                         .HasColumnType("int");
 
+                    b.Property<int>("QuantidadeParcelas")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -827,6 +907,8 @@ namespace projetos.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClienteId");
+
+                    b.HasIndex("ContaRecebimentoId");
 
                     b.HasIndex("MecanicoId");
 
@@ -1079,11 +1161,18 @@ namespace projetos.Migrations
 
             modelBuilder.Entity("Models.GrupoOficina", b =>
                 {
+                    b.HasOne("Models.ApplicationUser", "Administrador")
+                        .WithMany("GruposAdministrador")
+                        .HasForeignKey("AdministradorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Models.ApplicationUser", "Diretor")
                         .WithMany("GruposDiretor")
                         .HasForeignKey("DiretorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Administrador");
 
                     b.Navigation("Diretor");
                 });
@@ -1247,6 +1336,11 @@ namespace projetos.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Models.ContaFinanceira", "ContaRecebimento")
+                        .WithMany("OrdensRecebimento")
+                        .HasForeignKey("ContaRecebimentoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Models.ApplicationUser", "Mecanico")
                         .WithMany()
                         .HasForeignKey("MecanicoId");
@@ -1264,6 +1358,8 @@ namespace projetos.Migrations
                         .IsRequired();
 
                     b.Navigation("Cliente");
+
+                    b.Navigation("ContaRecebimento");
 
                     b.Navigation("Mecanico");
 
@@ -1325,6 +1421,8 @@ namespace projetos.Migrations
 
             modelBuilder.Entity("Models.ApplicationUser", b =>
                 {
+                    b.Navigation("GruposAdministrador");
+
                     b.Navigation("GruposDiretor");
 
                     b.Navigation("Oficinas");
@@ -1345,6 +1443,8 @@ namespace projetos.Migrations
             modelBuilder.Entity("Models.ContaFinanceira", b =>
                 {
                     b.Navigation("LancamentosPadrao");
+
+                    b.Navigation("OrdensRecebimento");
 
                     b.Navigation("ParcelasPagas");
                 });

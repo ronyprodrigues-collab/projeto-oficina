@@ -35,6 +35,11 @@
                     <input asp-for="ConfirmarSenha" class="form-control" />
                     <span asp-validation-for="ConfirmarSenha" class="text-danger"></span>
                 </div>
+                <div class="mb-3">
+                    <label asp-for="Token" class="form-label">Token de convite (opcional)</label>
+                    <input asp-for="Token" class="form-control" />
+                    <span asp-validation-for="Token" class="text-danger"></span>
+                </div>
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary">Registrar</button>
                 </div>
@@ -45,4 +50,3 @@
     </div>
     <partial name="_ValidationScriptsPartial" />
     </div>
-

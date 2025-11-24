@@ -23,19 +23,26 @@ namespace projetos.Controllers
         private readonly OficinaDbContext _context;
         private readonly IConverter? _pdfConverter;
         private readonly IEstoqueService _estoqueService;
+        private readonly IOficinaContext _oficinaContext;
 
-        public OrdensServicoController(OficinaDbContext context, IConverter? pdfConverter = null, IEstoqueService? estoqueService = null)
+        public OrdensServicoController(
+            OficinaDbContext context,
+            IConverter? pdfConverter = null,
+            IEstoqueService? estoqueService = null,
+            IOficinaContext? oficinaContext = null)
         {
             _context = context;
             _pdfConverter = pdfConverter;
             _estoqueService = estoqueService ?? throw new ArgumentNullException(nameof(estoqueService));
+            _oficinaContext = oficinaContext ?? throw new ArgumentNullException(nameof(oficinaContext));
         }
 
-        // GET: OrdensServico
         [Authorize]
         public async Task<IActionResult> Index(bool? mine, string? status, int? clienteId, int? veiculoId, bool? pendentes)
         {
-            var query = _context.OrdensServico.AsQueryable();
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var query = _context.OrdensServico
+                .Where(o => o.OficinaId == oficinaId);
             var isMecanico = User.IsInRole("Mecanico");
             var isAdmin = User.IsInRole("Admin");
             var isSupervisor = User.IsInRole("Supervisor");
@@ -77,7 +84,7 @@ namespace projetos.Controllers
                 ViewBag.Pendentes = await _context.OrdensServico
                     .Include(o => o.Cliente)
                     .Include(o => o.Veiculo)
-                    .Where(o => !o.AprovadaCliente && string.IsNullOrWhiteSpace(o.MotivoReprovacao))
+                    .Where(o => o.OficinaId == oficinaId && !o.AprovadaCliente && string.IsNullOrWhiteSpace(o.MotivoReprovacao))
                     .OrderByDescending(o => o.DataAbertura)
                     .ToListAsync();
             }
@@ -89,7 +96,6 @@ namespace projetos.Controllers
             return View(await oficinaDbContext.ToListAsync());
         }
 
-        // GET: OrdensServico/Details/5
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -97,13 +103,14 @@ namespace projetos.Controllers
                 return NotFound();
             }
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordemServico = await _context.OrdensServico
                 .Include(o => o.Cliente)
                 .Include(o => o.Mecanico)
                 .Include(o => o.Veiculo)
                 .Include(o => o.Servicos)
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && m.OficinaId == oficinaId);
             if (ordemServico == null)
             {
                 return NotFound();
@@ -112,34 +119,38 @@ namespace projetos.Controllers
             return View(ordemServico);
         }
 
-        // GET: OrdensServico/Create
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Create()
         {
-            ViewData["ClienteId"] = new SelectList(_context.Clientes.OrderBy(c=>c.Nome), "Id", "Nome");
-            var mecanicos = await GetMecanicosAsync();
-            ViewData["MecanicoId"] = new SelectList(mecanicos, "Id", "NomeCompleto");
-            ViewData["VeiculoId"] = new SelectList(_context.Veiculos.Include(v=>v.Cliente).OrderBy(v=>v.Placa), "Id", "Placa");
-            ViewBag.PecasEstoque = await _context.PecaEstoques.AsNoTracking().OrderBy(p=>p.Nome).ToListAsync();
-            return View();
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            await PopularDadosFormularioAsync(oficinaId);
+            var model = new OrdemServico
+            {
+                DataPrimeiroVencimento = DateTime.Today
+            };
+            return View(model);
         }
 
-        // POST: OrdensServico/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Supervisor")]
-        public async Task<IActionResult> Create([Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataAbertura,DataPrevista,DataConclusao,Status,AprovadaCliente,Observacoes")] OrdemServico ordemServico, List<ServicoItemInput>? servicos, List<PecaItemInput>? pecas)
+        public async Task<IActionResult> Create([Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataAbertura,DataPrevista,DataConclusao,Status,AprovadaCliente,Observacoes,FormaPagamento,QuantidadeParcelas,DataPrimeiroVencimento,ContaRecebimentoId")] OrdemServico ordemServico, List<ServicoItemInput>? servicos, List<PecaItemInput>? pecas)
         {
+            ordemServico.DataPrimeiroVencimento ??= DateTime.Today;
+            if (ordemServico.QuantidadeParcelas < 1)
+            {
+                ModelState.AddModelError(nameof(ordemServico.QuantidadeParcelas), "Informe a quantidade de parcelas.");
+            }
+
             if (ModelState.IsValid)
             {
+                var oficinaId = await ObterOficinaAtualIdAsync();
                 ordemServico.DataAbertura = DateTime.UtcNow;
                 if (!ordemServico.AprovadaCliente && string.IsNullOrWhiteSpace(ordemServico.Status))
                 {
                     ordemServico.Status = "Pendente de aprovação";
                 }
-                ordemServico.OficinaId = 1; // TODO: substituir pelo contexto da oficina selecionada
+                ordemServico.OficinaId = oficinaId;
                 _context.Add(ordemServico);
                 await _context.SaveChangesAsync();
                 if (servicos != null)
@@ -165,15 +176,11 @@ namespace projetos.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes.OrderBy(c=>c.Nome), "Id", "Nome", ordemServico.ClienteId);
-            var mecanicosInvalidCreate = await GetMecanicosAsync();
-            ViewData["MecanicoId"] = new SelectList(mecanicosInvalidCreate, "Id", "NomeCompleto", ordemServico.MecanicoId);
-            ViewData["VeiculoId"] = new SelectList(_context.Veiculos.OrderBy(v=>v.Placa), "Id", "Placa", ordemServico.VeiculoId);
-            ViewBag.PecasEstoque = await _context.PecaEstoques.AsNoTracking().OrderBy(p=>p.Nome).ToListAsync();
+            var oficinaAtual = await ObterOficinaAtualIdAsync();
+            await PopularDadosFormularioAsync(oficinaAtual, ordemServico.ClienteId, ordemServico.MecanicoId, ordemServico.VeiculoId, ordemServico.ContaRecebimentoId);
             return View(ordemServico);
         }
 
-        // GET: OrdensServico/Edit/5
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Edit(int? id)
         {
@@ -182,10 +189,11 @@ namespace projetos.Controllers
                 return NotFound();
             }
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordemServico = await _context.OrdensServico
                 .Include(o => o.Servicos)
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordemServico == null)
             {
                 return NotFound();
@@ -195,25 +203,27 @@ namespace projetos.Controllers
                 TempData["Error"] = "Ordem reprovada não pode ser editada.";
                 return RedirectToAction(nameof(Details), new { id });
             }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes.OrderBy(c=>c.Nome), "Id", "Nome", ordemServico.ClienteId);
-            var mecanicosEdit = await GetMecanicosAsync();
-            ViewData["MecanicoId"] = new SelectList(mecanicosEdit, "Id", "NomeCompleto", ordemServico.MecanicoId);
-            ViewData["VeiculoId"] = new SelectList(_context.Veiculos.OrderBy(v=>v.Placa), "Id", "Placa", ordemServico.VeiculoId);
+            await PopularDadosFormularioAsync(oficinaId, ordemServico.ClienteId, ordemServico.MecanicoId, ordemServico.VeiculoId, ordemServico.ContaRecebimentoId);
             return View(ordemServico);
         }
 
-        // POST: OrdensServico/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Supervisor")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataPrevista,Status,AprovadaCliente,Observacoes")] OrdemServico ordemServico, List<ServicoItemInput>? servicos, List<PecaItemInput>? pecas)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,ClienteId,VeiculoId,MecanicoId,Descricao,DataPrevista,Status,AprovadaCliente,Observacoes,FormaPagamento,QuantidadeParcelas,DataPrimeiroVencimento,ContaRecebimentoId")] OrdemServico ordemServico, List<ServicoItemInput>? servicos, List<PecaItemInput>? pecas)
         {
             if (id != ordemServico.Id)
             {
                 return NotFound();
             }
+
+            ordemServico.DataPrimeiroVencimento ??= DateTime.Today;
+            if (ordemServico.QuantidadeParcelas < 1)
+            {
+                ModelState.AddModelError(nameof(ordemServico.QuantidadeParcelas), "Informe a quantidade de parcelas.");
+            }
+
+            var oficinaId = await ObterOficinaAtualIdAsync();
 
             if (ModelState.IsValid)
             {
@@ -222,7 +232,7 @@ namespace projetos.Controllers
                     var existing = await _context.OrdensServico
                         .Include(o => o.Servicos)
                         .Include(o => o.Pecas)
-                        .FirstOrDefaultAsync(o => o.Id == id);
+                        .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
                     if (existing == null) return NotFound();
                     if (!string.IsNullOrWhiteSpace(existing.MotivoReprovacao))
                     {
@@ -281,20 +291,17 @@ namespace projetos.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClienteId"] = new SelectList(_context.Clientes.OrderBy(c=>c.Nome), "Id", "Nome", ordemServico.ClienteId);
-            var mecanicosInvalidEdit = await GetMecanicosAsync();
-            ViewData["MecanicoId"] = new SelectList(mecanicosInvalidEdit, "Id", "NomeCompleto", ordemServico.MecanicoId);
-            ViewData["VeiculoId"] = new SelectList(_context.Veiculos.OrderBy(v=>v.Placa), "Id", "Placa", ordemServico.VeiculoId);
-            ViewBag.PecasEstoque = await _context.PecaEstoques.AsNoTracking().OrderBy(p=>p.Nome).ToListAsync();
+            await PopularDadosFormularioAsync(oficinaId, ordemServico.ClienteId, ordemServico.MecanicoId, ordemServico.VeiculoId, ordemServico.ContaRecebimentoId);
             return View(ordemServico);
         }
 
-        // GET: OrdensServico/AssignMechanic/5
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> AssignMechanic(int? id)
         {
             if (id == null) return NotFound();
-            var ordem = await _context.OrdensServico.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var ordem = await _context.OrdensServico
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordem == null) return NotFound();
 
             var roleId = await _context.Roles.Where(r => r.Name == "Mecanico").Select(r => r.Id).FirstOrDefaultAsync();
@@ -306,28 +313,29 @@ namespace projetos.Controllers
             return View(ordem);
         }
 
-        // POST: OrdensServico/AssignMechanic/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> AssignMechanic(int id, string mecanicoId)
         {
-            var ordem = await _context.OrdensServico.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var ordem = await _context.OrdensServico
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordem == null) return NotFound();
             ordem.MecanicoId = mecanicoId;
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // POST: OrdensServico/Approve/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Approve(int id)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordem = await _context.OrdensServico
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordem == null) return NotFound();
 
             if (!ordem.AprovadaCliente)
@@ -350,9 +358,10 @@ namespace projetos.Controllers
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Reject(int id, string motivoReprovacao)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordem = await _context.OrdensServico
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordem == null) return NotFound();
 
             if (string.IsNullOrWhiteSpace(motivoReprovacao))
@@ -375,20 +384,27 @@ namespace projetos.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // POST: OrdensServico/Conclude/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Conclude(int id)
         {
-            var ordem = await _context.OrdensServico.FindAsync(id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var ordem = await _context.OrdensServico
+                .Include(o => o.Servicos)
+                .Include(o => o.Pecas)
+                .Include(o => o.Cliente)
+                .Include(o => o.Mecanico)
+                .Include(o => o.Oficina)
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordem == null) return NotFound();
             ordem.DataConclusao = DateTime.UtcNow;
             ordem.Status = string.IsNullOrEmpty(ordem.Status) ? "Concluida" : ordem.Status;
             await _context.SaveChangesAsync();
+            await GerarLancamentosFinanceirosDaOsAsync(ordem);
+            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // GET: OrdensServico/Delete/5
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> Delete(int? id)
         {
@@ -397,11 +413,12 @@ namespace projetos.Controllers
                 return NotFound();
             }
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordemServico = await _context.OrdensServico
                 .Include(o => o.Cliente)
                 .Include(o => o.Mecanico)
                 .Include(o => o.Veiculo)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && m.OficinaId == oficinaId);
             if (ordemServico == null)
             {
                 return NotFound();
@@ -410,15 +427,15 @@ namespace projetos.Controllers
             return View(ordemServico);
         }
 
-        // POST: OrdensServico/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Supervisor")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var ordemServico = await _context.OrdensServico
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (ordemServico != null)
             {
                 await ReporEstoqueAsync(ordemServico.Id);
@@ -565,7 +582,10 @@ namespace projetos.Controllers
         [Authorize(Roles = "Admin,Supervisor,Mecanico")]
         public async Task<IActionResult> ConcluirServicoItem(int id)
         {
-            var item = await _context.ServicoItem.Include(s=>s.OrdemServico).FirstOrDefaultAsync(s=>s.Id==id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var item = await _context.ServicoItem
+                .Include(s=>s.OrdemServico)
+                .FirstOrDefaultAsync(s=>s.Id==id && s.OrdemServico.OficinaId == oficinaId);
             if (item == null) return NotFound();
             item.Concluido = true;
             await _context.SaveChangesAsync();
@@ -578,7 +598,10 @@ namespace projetos.Controllers
         [Authorize(Roles = "Admin,Supervisor,Mecanico")]
         public async Task<IActionResult> ConcluirPecaItem(int id)
         {
-            var item = await _context.PecaItem.Include(p=>p.OrdemServico).FirstOrDefaultAsync(p=>p.Id==id);
+            var oficinaId = await ObterOficinaAtualIdAsync();
+            var item = await _context.PecaItem
+                .Include(p=>p.OrdemServico)
+                .FirstOrDefaultAsync(p=>p.Id==id && p.OrdemServico.OficinaId == oficinaId);
             if (item == null) return NotFound();
             item.Concluido = true;
             await _context.SaveChangesAsync();
@@ -604,13 +627,14 @@ namespace projetos.Controllers
         [HttpGet]
         public async Task<IActionResult> GerarPDF(int id)
         {
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var os = await _context.OrdensServico
                 .Include(o => o.Cliente)
                 .Include(o => o.Veiculo)
                 .Include(o => o.Mecanico)
                 .Include(o => o.Servicos)
                 .Include(o => o.Pecas)
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.OficinaId == oficinaId);
             if (os == null) return NotFound();
 
             var totalServicos = os.Servicos?.Sum(s => s.Valor) ?? 0m;
@@ -654,7 +678,6 @@ namespace projetos.Controllers
             return File(bytes, "application/pdf", $"OS_{os.Id}.pdf");
         }
 
-        // GET: OrdensServico/Minhas
         [Authorize(Roles = "Mecanico,Admin,Supervisor")]
         public async Task<IActionResult> Minhas()
         {
@@ -662,14 +685,209 @@ namespace projetos.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
+            var oficinaId = await ObterOficinaAtualIdAsync();
             var lista = await _context.OrdensServico
                 .Include(o => o.Veiculo)
                 .Include(o => o.Servicos)
-                .Where(o => o.MecanicoId == userId && o.DataConclusao == null && o.AprovadaCliente)
+                .Where(o => o.OficinaId == oficinaId && o.MecanicoId == userId && o.DataConclusao == null && o.AprovadaCliente)
                 .OrderBy(o => o.DataPrevista)
                 .ToListAsync();
 
             return View(lista);
+        }
+
+        private async Task<int> ObterOficinaAtualIdAsync()
+        {
+            var oficina = await _oficinaContext.GetOficinaAtualAsync();
+            if (oficina == null)
+            {
+                throw new InvalidOperationException("Nenhuma oficina selecionada.");
+            }
+            return oficina.Id;
+        }
+
+        private async Task GerarLancamentosFinanceirosDaOsAsync(OrdemServico ordem)
+        {
+            await _context.Entry(ordem).Collection(o => o.Servicos).LoadAsync();
+            await _context.Entry(ordem).Collection(o => o.Pecas).LoadAsync();
+            await _context.Entry(ordem).Reference(o => o.Oficina).LoadAsync();
+            await _context.Entry(ordem).Reference(o => o.Cliente).LoadAsync();
+            await _context.Entry(ordem).Reference(o => o.Mecanico).LoadAsync();
+
+            if (ordem.Oficina == null) return;
+
+            var totalServicos = ordem.Servicos?.Sum(s => s.Valor) ?? 0m;
+            var totalPecas = ordem.Pecas?.Sum(p => p.ValorUnitario * p.Quantidade) ?? 0m;
+            var totalOs = totalServicos + totalPecas;
+            if (totalOs <= 0) return;
+
+            var contaRecebimentoId = ordem.ContaRecebimentoId ?? await ObterContaPadraoAsync(ordem.OficinaId);
+            if (contaRecebimentoId == 0) return;
+            ordem.ContaRecebimentoId ??= contaRecebimentoId;
+
+            var receitaCategoriaId = await ObterCategoriaPadraoAsync(ordem.OficinaId, FinanceiroTipoLancamento.Receita);
+            var despesaCategoriaId = await ObterCategoriaPadraoAsync(ordem.OficinaId, FinanceiroTipoLancamento.Despesa);
+            var primeiroVencimento = ordem.DataPrimeiroVencimento ?? DateTime.Today;
+            var parcelas = ordem.FormaPagamento == FinanceiroFormaPagamento.CartaoCredito || ordem.FormaPagamento == FinanceiroFormaPagamento.Boleto
+                ? Math.Max(1, ordem.QuantidadeParcelas)
+                : 1;
+
+            if (ordem.LancamentoFinanceiroReceitaId == null)
+            {
+                var lancReceita = new LancamentoFinanceiro
+                {
+                    OficinaId = ordem.OficinaId,
+                    Tipo = FinanceiroTipoLancamento.Receita,
+                    CategoriaFinanceiraId = receitaCategoriaId,
+                    ContaPadraoId = contaRecebimentoId,
+                    ClienteId = ordem.ClienteId,
+                    Descricao = $"OS #{ordem.Id} - {(ordem.Cliente?.Nome ?? string.Empty)}",
+                    NumeroDocumento = $"OS-{ordem.Id}",
+                    DataCompetencia = DateTime.Today,
+                    ValorTotal = totalOs,
+                    FormaPagamento = ordem.FormaPagamento,
+                    QuantidadeParcelas = parcelas,
+                    Origem = $"OS#{ordem.Id}"
+                };
+
+                var baseValor = parcelas == 0 ? totalOs : decimal.Round(totalOs / parcelas, 2, MidpointRounding.AwayFromZero);
+                for (var i = 0; i < parcelas; i++)
+                {
+                    var venc = primeiroVencimento.AddDays(30 * i);
+                    var dias = (int)Math.Max(0, (venc - primeiroVencimento).TotalDays);
+                    var valorParcela = baseValor;
+                    if (dias > ordem.Oficina.FinanceiroPrazoSemJurosDias && ordem.Oficina.FinanceiroJurosMensal > 0)
+                    {
+                        var excedente = dias - ordem.Oficina.FinanceiroPrazoSemJurosDias;
+                        var meses = Math.Ceiling(excedente / 30d);
+                        var fator = Math.Pow(1 + (double)ordem.Oficina.FinanceiroJurosMensal, meses);
+                        valorParcela = decimal.Round(baseValor * (decimal)fator, 2, MidpointRounding.AwayFromZero);
+                    }
+
+                    lancReceita.Parcelas.Add(new LancamentoParcela
+                    {
+                        Numero = i + 1,
+                        DataVencimento = venc,
+                        Valor = valorParcela,
+                        Situacao = FinanceiroSituacaoParcela.Pendente
+                    });
+                }
+
+                _context.LancamentosFinanceiros.Add(lancReceita);
+                await _context.SaveChangesAsync();
+                ordem.LancamentoFinanceiroReceitaId = lancReceita.Id;
+            }
+
+            if (totalPecas > 0 && ordem.LancamentoFinanceiroCustoPecasId == null)
+            {
+                var lancCusto = new LancamentoFinanceiro
+                {
+                    OficinaId = ordem.OficinaId,
+                    Tipo = FinanceiroTipoLancamento.Despesa,
+                    CategoriaFinanceiraId = despesaCategoriaId,
+                    Descricao = $"Reposição de peças OS #{ordem.Id}",
+                    NumeroDocumento = $"OS-PEC-{ordem.Id}",
+                    DataCompetencia = DateTime.Today,
+                    ValorTotal = totalPecas,
+                    FormaPagamento = FinanceiroFormaPagamento.Dinheiro,
+                    QuantidadeParcelas = 1,
+                    Origem = $"OS#{ordem.Id}"
+                };
+                lancCusto.Parcelas.Add(new LancamentoParcela
+                {
+                    Numero = 1,
+                    DataVencimento = DateTime.Today.AddDays(7),
+                    Valor = totalPecas,
+                    Situacao = FinanceiroSituacaoParcela.Pendente
+                });
+                _context.LancamentosFinanceiros.Add(lancCusto);
+                await _context.SaveChangesAsync();
+                ordem.LancamentoFinanceiroCustoPecasId = lancCusto.Id;
+            }
+
+            var comissaoPercentual = ordem.Mecanico?.PercentualComissao ?? 0m;
+            if (comissaoPercentual > 0 && totalServicos > 0 && ordem.LancamentoFinanceiroComissaoId == null)
+            {
+                var valorComissao = decimal.Round(totalServicos * (comissaoPercentual / 100m), 2, MidpointRounding.AwayFromZero);
+                var lancComissao = new LancamentoFinanceiro
+                {
+                    OficinaId = ordem.OficinaId,
+                    Tipo = FinanceiroTipoLancamento.Despesa,
+                    CategoriaFinanceiraId = despesaCategoriaId,
+                    Descricao = $"Comissão mecânico OS #{ordem.Id}",
+                    NumeroDocumento = $"OS-COM-{ordem.Id}",
+                    DataCompetencia = DateTime.Today,
+                    ValorTotal = valorComissao,
+                    FormaPagamento = FinanceiroFormaPagamento.Dinheiro,
+                    QuantidadeParcelas = 1,
+                    Origem = $"OS#{ordem.Id}",
+                    ClienteId = null,
+                    ParceiroNome = ordem.Mecanico?.NomeCompleto
+                };
+                lancComissao.Parcelas.Add(new LancamentoParcela
+                {
+                    Numero = 1,
+                    DataVencimento = DateTime.Today.AddDays(5),
+                    Valor = valorComissao,
+                    Situacao = FinanceiroSituacaoParcela.Pendente
+                });
+                _context.LancamentosFinanceiros.Add(lancComissao);
+                await _context.SaveChangesAsync();
+                ordem.LancamentoFinanceiroComissaoId = lancComissao.Id;
+            }
+        }
+
+        private async Task<int> ObterCategoriaPadraoAsync(int oficinaId, FinanceiroTipoLancamento tipo)
+        {
+            var categoria = await _context.CategoriasFinanceiras
+                .Where(c => c.OficinaId == oficinaId && c.Tipo == tipo)
+                .OrderBy(c => c.Id)
+                .FirstOrDefaultAsync();
+            if (categoria == null)
+            {
+                throw new InvalidOperationException("Nenhuma categoria financeira configurada para a oficina.");
+            }
+            return categoria.Id;
+        }
+
+        private async Task<int> ObterContaPadraoAsync(int oficinaId)
+        {
+            var conta = await _context.ContasFinanceiras
+                .Where(c => c.OficinaId == oficinaId)
+                .OrderBy(c => c.Id)
+                .FirstOrDefaultAsync();
+            return conta?.Id ?? 0;
+        }
+
+        private async Task PopularDadosFormularioAsync(int oficinaId, int? clienteId = null, string? mecanicoId = null, int? veiculoId = null, int? contaRecebimentoId = null)
+        {
+            var clientes = await _context.OficinasClientes
+                .Where(oc => oc.OficinaId == oficinaId)
+                .Select(oc => oc.Cliente)
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+            ViewData["ClienteId"] = new SelectList(clientes, "Id", "Nome", clienteId);
+
+            var mecanicos = await GetMecanicosAsync();
+            ViewData["MecanicoId"] = new SelectList(mecanicos, "Id", "NomeCompleto", mecanicoId);
+
+            var veiculos = await _context.Veiculos
+                .Where(v => v.Oficinas.Any(o => o.OficinaId == oficinaId))
+                .OrderBy(v => v.Placa)
+                .ToListAsync();
+            ViewData["VeiculoId"] = new SelectList(veiculos, "Id", "Placa", veiculoId);
+
+            ViewBag.PecasEstoque = await _context.PecaEstoques
+                .AsNoTracking()
+                .Where(p => p.OficinaId == oficinaId)
+                .OrderBy(p => p.Nome)
+                .ToListAsync();
+
+            var contas = await _context.ContasFinanceiras
+                .Where(c => c.OficinaId == oficinaId)
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+            ViewData["ContaRecebimentoId"] = new SelectList(contas, "Id", "Nome", contaRecebimentoId);
         }
     }
 }

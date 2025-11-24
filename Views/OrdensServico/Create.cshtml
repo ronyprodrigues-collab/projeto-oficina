@@ -73,6 +73,25 @@
                 </div>
             </div>
 
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <label asp-for="FormaPagamento" class="form-label">Forma de pagamento</label>
+                    <select asp-for="FormaPagamento" class="form-select" asp-items="Html.GetEnumSelectList<Models.FinanceiroFormaPagamento>()"></select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="ContaRecebimentoId" class="form-label">Conta para recebimento</label>
+                    <select asp-for="ContaRecebimentoId" class="form-select" asp-items="ViewBag.ContaRecebimentoId"></select>
+                </div>
+                <div class="col-md-2">
+                    <label asp-for="QuantidadeParcelas" class="form-label">Parcelas</label>
+                    <input asp-for="QuantidadeParcelas" type="number" class="form-control" min="1" />
+                </div>
+                <div class="col-md-2">
+                    <label asp-for="DataPrimeiroVencimento" class="form-label">1º vencimento</label>
+                    <input asp-for="DataPrimeiroVencimento" type="date" class="form-control" />
+                </div>
+            </div>
+
             <div class="mt-3">
                 <button type="submit" class="btn btn-success">Salvar OS</button>
                 <a asp-action="Index" class="btn btn-secondary ms-2">Voltar</a>
